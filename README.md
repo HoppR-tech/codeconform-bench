@@ -122,6 +122,27 @@ CCB is currently defining and validating its first public protocol. The reposito
 
 CCB will first use `ccb-ohmyform` as its benchmark target. CI/CD will clone this repository to run the benchmarks.
 
+#### Current OhMyForm architecture and state
+
+The audited checkout (`c099827`) deploys Next.js public and administration pages behind Nginx, with a NestJS/Apollo GraphQL API. The API combines resolvers, services, and TypeORM entities; it persists to SQLite, PostgreSQL, or MariaDB, and can use Redis subscriptions, SMTP, and webhooks.
+
+```mermaid
+flowchart LR
+    respondent[Respondent] -->|accesses| nginx[Nginx / Supervisor]
+    admin[Administrator] -->|administers| nginx
+    nginx -->|/| ui[Next.js UI\npublic and admin]
+    nginx -->|/graphql + WebSocket| api[NestJS / Apollo GraphQL]
+    api --> resolvers[Resolvers\naccess control, IDs, cache]
+    resolvers --> services[Services\nforms, submissions, auth]
+    services --> entities[TypeORM entities\nforms, fields, pages, submissions]
+    entities --> db[(SQLite / PostgreSQL / MariaDB)]
+    api -.->|optional pub/sub| redis[(Redis)]
+    services -->|emails| smtp[SMTP]
+    services -->|notifications| webhooks[Third-party webhooks]
+```
+
+The core product covers authentication and administration, form building and publication, eleven API-declared field types, conditional logic, progressive submissions, two respondent layouts, localisation, statistics, exports, emails, and webhooks. Its main refactoring risks are the large `Form` aggregate coupled to TypeORM, a single update flow that rewrites fields/options/logic/hooks/design/notifications/pages, three database dialects, and no application test suite found in the audited checkout.
+
 ## Contributing
 
 Contributions are welcome, especially for:

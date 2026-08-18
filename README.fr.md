@@ -122,6 +122,27 @@ CCB définit et valide actuellement son premier protocole public. Le dépôt pub
 
 CCB utilisera d’abord `ccb-ohmyform` comme cible de benchmark. La CI/CD clonera ce dépôt pour exécuter les runs.
 
+#### Architecture actuelle et état d’OhMyForm
+
+Le checkout audité (`c099827`) déploie les pages Next.js publiques et d’administration derrière Nginx, avec une API GraphQL NestJS/Apollo. L’API combine resolvers, services et entités TypeORM ; elle persiste dans SQLite, PostgreSQL ou MariaDB, et peut utiliser les subscriptions Redis, SMTP et des webhooks.
+
+```mermaid
+flowchart LR
+    respondent[Répondant] -->|accède| nginx[Nginx / Supervisor]
+    admin[Administrateur] -->|administre| nginx
+    nginx -->|/| ui[UI Next.js\npublic et administration]
+    nginx -->|/graphql + WebSocket| api[NestJS / Apollo GraphQL]
+    api --> resolvers[Resolvers\ncontrôle d’accès, IDs, cache]
+    resolvers --> services[Services\nformulaires, soumissions, auth]
+    services --> entities[Entités TypeORM\nformulaires, champs, pages, soumissions]
+    entities --> db[(SQLite / PostgreSQL / MariaDB)]
+    api -.->|pub/sub optionnel| redis[(Redis)]
+    services -->|emails| smtp[SMTP]
+    services -->|notifications| webhooks[Webhooks tiers]
+```
+
+Le produit couvre l’authentification et l’administration, l’édition et la publication de formulaires, onze types de champs déclarés par l’API, la logique conditionnelle, les soumissions progressives, deux layouts répondant, l’internationalisation, les statistiques, les exports, les emails et les webhooks. Les principaux risques de refacto sont le gros agrégat `Form` couplé à TypeORM, un flux unique de mise à jour qui réécrit champs/options/logique/hooks/design/notifications/pages, trois dialectes SGBD et l’absence de suite de tests applicatifs dans le checkout audité.
+
 ## Contribuer
 
 Les contributions sont bienvenues, en particulier pour :
