@@ -198,6 +198,26 @@ flowchart LR
     formRunner --> shared
 ```
 
+##### Écarts constatés avec une clean architecture
+
+**Backend**
+
+- Il n’existe pas de couche domaine indépendante : les classes de `entity/` sont des modèles de persistance TypeORM, avec chargement des relations et cascades (`api/src/entity/form.entity.ts`).
+- Les services applicatifs dépendent directement des inputs GraphQL, des entités TypeORM et de `Repository<T>`, au lieu de commandes applicatives et de ports de repository possédés par l’application (`api/src/service/form/form.update.service.ts`).
+- Les resolvers GraphQL mélangent transport, autorisation, décodage des IDs, mise à jour du cache, chargement des données et orchestration de cas d’usage (`api/src/resolver/form/form.update.mutation.ts`).
+- La mise à jour d’un formulaire modifie champs, options, règles conditionnelles, hooks, design, notifications et pages dans une seule opération technique. L’agrégat métier n’a pas de frontière d’invariants isolée (`api/src/service/form/form.update.service.ts`).
+- Les effets email et webhook passent par des services concrets ; aucun port applicatif n’isole ces intégrations techniques.
+- Aucun test applicatif n’a été trouvé dans le checkout audité : il n’existe donc pas de filet de caractérisation pour extraire les couches.
+
+**Frontend**
+
+- Les routes et composants d’écran consomment directement queries, mutations et fragments GraphQL ; la présentation dépend du contrat de transport (`ui/pages/admin/forms/[id]/index.tsx`).
+- Il n’existe pas de couche domaine/applicative frontend indépendante d’Apollo et des payloads GraphQL ; les composants d’édition manipulent les fragments GraphQL comme modèle de travail.
+- `use.submission.ts` mélange état UI, génération de token côté client, détection du device navigateur, appels de mutations GraphQL et sérialisation des valeurs.
+- `with.auth.tsx` mélange politique d’accès, lookup GraphQL de l’utilisateur, stockage navigateur, UI de chargement et redirections de navigation.
+- L’état d’authentification a des mécanismes qui se chevauchent : Apollo lit `localStorage`, tandis qu’un slice Redux `store/auth/` non utilisé reste dans le code.
+- Le renderer de formulaire, les éditeurs de champs et l’éditeur de logique conditionnelle répartissent les préoccupations de feature entre routes, hooks et composants, plutôt que de les composer via une frontière applicative stable.
+
 Le produit couvre l’authentification et l’administration, l’édition et la publication de formulaires, onze types de champs déclarés par l’API, la logique conditionnelle, les soumissions progressives, deux layouts répondant, l’internationalisation, les statistiques, les exports, les emails et les webhooks. Les principaux risques de refacto backend sont le gros agrégat `Form` couplé à TypeORM, un flux unique de mise à jour qui réécrit champs/options/logique/hooks/design/notifications/pages, trois dialectes SGBD et l’absence de suite de tests applicatifs dans le checkout audité.
 
 

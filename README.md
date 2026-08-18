@@ -198,6 +198,26 @@ flowchart LR
     formRunner --> shared
 ```
 
+##### Gaps against clean architecture
+
+**Backend**
+
+- There is no independent domain layer: `entity/` classes are TypeORM persistence models, including relation loading and cascades (`api/src/entity/form.entity.ts`).
+- Application services depend directly on GraphQL inputs, TypeORM entities, and `Repository<T>` rather than application-owned commands and repository ports (`api/src/service/form/form.update.service.ts`).
+- GraphQL resolvers combine transport concerns with authorization, ID decoding, cache updates, data lookup, and use-case orchestration (`api/src/resolver/form/form.update.mutation.ts`).
+- Form updates mutate fields, options, conditional rules, hooks, design, notifications, and pages in one technical operation. The business aggregate has no isolated invariant boundary (`api/src/service/form/form.update.service.ts`).
+- Email and webhook effects are invoked from concrete services; no application port isolates those technical integrations.
+- No application test suite was found in the audited checkout, so there is no characterization safety net for extracting the layers.
+
+**Frontend**
+
+- Routes and screen components consume GraphQL queries, mutations, and fragments directly; presentation depends on the transport contract (`ui/pages/admin/forms/[id]/index.tsx`).
+- There is no frontend domain/application layer independent of Apollo and GraphQL payloads; form-editing components use generated GraphQL fragment shapes as their working model.
+- `use.submission.ts` combines UI state, client token generation, browser device detection, GraphQL mutation calls, and value serialization.
+- `with.auth.tsx` combines access policy, GraphQL user lookup, browser storage, loading UI, and navigation redirects.
+- Authentication state has overlapping mechanisms: Apollo reads `localStorage`, while an unused `store/auth/` Redux slice remains in the codebase.
+- The form renderer, field editors, and conditional-logic editor share feature concerns across routes, hooks, and components instead of being composed through a stable application boundary.
+
 The core product covers authentication and administration, form building and publication, eleven API-declared field types, conditional logic, progressive submissions, two respondent layouts, localisation, statistics, exports, emails, and webhooks. The backend’s main refactoring risks are its large `Form` aggregate coupled to TypeORM, a single update flow that rewrites fields/options/logic/hooks/design/notifications/pages, three database dialects, and no application test suite found in the audited checkout.
 
 
