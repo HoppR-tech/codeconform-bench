@@ -54,6 +54,30 @@ Le protocole est figé et publié avant les runs :
 5. L’évaluateur s’exécute hors du workspace de l’agent ; ses règles ne sont pas accessibles au modèle.
 6. Les résultats publient médianes, intervalles de confiance, données brutes de chaque run et versions exactes des modèles.
 
+## Architecture proposée du benchmark
+
+L’architecture proposée sépare les workspaces des agents de l’évaluateur privé. La CI/CD fournit un dépôt cible épinglé aux runs baseline et Grace, dans les mêmes conditions. Seuls les runs qui réussissent la gate fonctionnelle reçoivent un score d’architecture.
+
+```mermaid
+flowchart LR
+    accTitle: Architecture proposée du benchmark CCB
+    accDescr {
+      La CI/CD clone un dépôt cible à une révision épinglée et crée des workspaces baseline et Grace identiques.
+      Les deux workspaces passent par une gate fonctionnelle. Les runs réussis sont évalués en privé et combinés avec les métadonnées de run dans les résultats du benchmark.
+    }
+    CI[CI/CD CCB] -->|clone| T[Dépôt cible]
+    T -->|épingle la révision| B[Workspace baseline]
+    T -->|épingle la révision| G[Workspace Grace]
+    B -->|exécute| FB[Gate fonctionnelle]
+    G -->|exécute| FG[Gate fonctionnelle]
+    FB -->|autorise| E[Évaluateur privé]
+    FG -->|autorise| E
+    E -->|produit| R[Résultats du benchmark]
+    M[Versions épinglées et métadonnées de run] -->|identifie| R
+```
+
+Équivalent textuel : la CI/CD clone un dépôt cible épinglé pour baseline et Grace. Chaque run doit réussir la gate fonctionnelle avant que l’évaluateur privé séparé produise des résultats d’architecture, identifiés par les versions épinglées et les métadonnées de run.
+
 ## Règles d’architecture
 
 Chaque adaptateur de langage exprime la même sémantique architecturale avec son outillage natif. Les catégories initiales sont :
@@ -79,6 +103,10 @@ CCB traite l’isolation de l’évaluation comme une propriété fondamentale :
 ## État du projet
 
 CCB définit et valide actuellement son premier protocole public. Le dépôt publiera progressivement le harness exécutable, les adaptateurs de langage, les templates de tâches, la spécification de score et les résultats agrégés.
+
+### Première cible de benchmark documentée
+
+CCB utilisera d’abord `ccb-ohmyform` comme cible de benchmark. La CI/CD clonera ce dépôt pour exécuter les runs.
 
 ## Contribuer
 

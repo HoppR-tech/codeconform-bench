@@ -54,6 +54,30 @@ The protocol is fixed and published before benchmark runs:
 5. The evaluator runs separately from the agent workspace; its rules are not available to the model.
 6. Results include medians, confidence intervals, raw run data, and exact model versions.
 
+## Proposed benchmark architecture
+
+The proposed architecture keeps agent workspaces separate from the private evaluator. A target repository pinned by CI/CD supplies identical baseline and Grace runs. Only runs that pass the functional gate receive an architecture score.
+
+```mermaid
+flowchart LR
+    accTitle: Proposed CCB benchmark architecture
+    accDescr {
+      CI/CD clones a target repository at a pinned revision and creates identical baseline and Grace workspaces.
+      Both workspaces pass through a functional gate. Passing runs are evaluated privately and combined with run metadata into benchmark results.
+    }
+    CI[CCB CI/CD] -->|clones| T[Target repository]
+    T -->|pins revision| B[Baseline workspace]
+    T -->|pins revision| G[Grace workspace]
+    B -->|runs| FB[Functional gate]
+    G -->|runs| FG[Functional gate]
+    FB -->|permits| E[Private evaluator]
+    FG -->|permits| E
+    E -->|produces| R[Benchmark results]
+    M[Pinned versions and run metadata] -->|identifies| R
+```
+
+Text equivalent: CI/CD clones a pinned target repository for baseline and Grace. Each run must pass the functional gate before the separate private evaluator produces architecture results, identified with the pinned versions and run metadata.
+
 ## Architecture rules
 
 Each language adapter expresses the same architectural semantics through its native tooling. The initial rule categories are:
@@ -79,6 +103,10 @@ CCB treats evaluation isolation as a core property:
 ## Status
 
 CCB is currently defining and validating its first public protocol. The repository will publish the runnable harness, language adapters, task templates, scoring specification, and aggregated results as they become available.
+
+### First documented benchmark target
+
+CCB will first use `ccb-ohmyform` as its benchmark target. CI/CD will clone this repository to run the benchmarks.
 
 ## Contributing
 
