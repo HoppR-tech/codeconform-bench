@@ -124,24 +124,82 @@ CCB utilisera d’abord `ccb-ohmyform` comme cible de benchmark. La CI/CD cloner
 
 #### Architecture actuelle et état d’OhMyForm
 
-Le checkout audité (`c099827`) déploie les pages Next.js publiques et d’administration derrière Nginx, avec une API GraphQL NestJS/Apollo. L’API combine resolvers, services et entités TypeORM ; elle persiste dans SQLite, PostgreSQL ou MariaDB, et peut utiliser les subscriptions Redis, SMTP et des webhooks.
+Le checkout audité (`c099827`) est organisé en trois tiers techniques côté backend, et non en clean/hexagonal architecture. Les schémas ci-dessous décrivent les dépendances de code, pas la topologie de déploiement.
+
+##### Backend — architecture de code actuelle en trois tiers
 
 ```mermaid
 flowchart LR
-    respondent[Répondant] -->|accède| nginx[Nginx / Supervisor]
-    admin[Administrateur] -->|administre| nginx
-    nginx -->|/| ui[UI Next.js\npublic et administration]
-    nginx -->|/graphql + WebSocket| api[NestJS / Apollo GraphQL]
-    api --> resolvers[Resolvers\ncontrôle d’accès, IDs, cache]
-    resolvers --> services[Services\nformulaires, soumissions, auth]
-    services --> entities[Entités TypeORM\nformulaires, champs, pages, soumissions]
-    entities --> db[(SQLite / PostgreSQL / MariaDB)]
-    api -.->|pub/sub optionnel| redis[(Redis)]
-    services -->|emails| smtp[SMTP]
-    services -->|notifications| webhooks[Webhooks tiers]
+    subgraph presentation[Présentation — GraphQL]
+        resolver[resolver/\nqueries, mutations, field resolvers]
+        dto[dto/\ninputs et modèles GraphQL]
+        boundary[guard/, pipe/, decorator/\nauth, rôles, lookup ID]
+    end
+    subgraph application[Services applicatifs]
+        formService[service/form/\ncréation, mise à jour, statistiques]
+        submissionService[service/submission/\ndémarrage, réponse, finalisation]
+        accountService[service/auth/, user/, profile/]
+    end
+    subgraph data[Données et persistance]
+        entity[entity/\nentités TypeORM et valeurs embedded]
+        repository[Repositories TypeORM]
+        migrations[migrations/\nSQLite, PostgreSQL, MariaDB]
+    end
+    resolver -->|binds| dto
+    boundary -->|protège et résout les arguments| resolver
+    resolver -->|invoque| formService
+    resolver -->|invoque| submissionService
+    resolver -->|invoque| accountService
+    formService -->|modifie| entity
+    submissionService -->|modifie| entity
+    accountService -->|modifie| entity
+    formService --> repository
+    submissionService --> repository
+    accountService --> repository
+    repository -->|mappe| entity
 ```
 
-Le produit couvre l’authentification et l’administration, l’édition et la publication de formulaires, onze types de champs déclarés par l’API, la logique conditionnelle, les soumissions progressives, deux layouts répondant, l’internationalisation, les statistiques, les exports, les emails et les webhooks. Les principaux risques de refacto sont le gros agrégat `Form` couplé à TypeORM, un flux unique de mise à jour qui réécrit champs/options/logique/hooks/design/notifications/pages, trois dialectes SGBD et l’absence de suite de tests applicatifs dans le checkout audité.
+##### Frontend — architecture de code actuelle
+
+```mermaid
+flowchart LR
+    subgraph routes[Routes et écrans]
+        pages[pages/\nformulaires publics, admin, login, register]
+        authBoundary[with.auth.tsx\naccès aux routes]
+        structure[structure.tsx, sidemenu.tsx\nshell d’écran]
+    end
+    subgraph features[UI par fonctionnalité]
+        formAdmin[components/form/admin/\nbuilder, logique, design, hooks]
+        formRunner[components/form/layouts/\nparcours répondant card et slider]
+        fieldTypes[components/form/types/\néditeurs et inputs de champs]
+        submissionHook[use.submission.ts\ndémarrage, sauvegarde, finalisation]
+    end
+    subgraph state[Données et état]
+        graphql[graphql/\nqueries, mutations, fragments]
+        apollo[Client Apollo\ncache et header auth]
+        browserAuth[localStorage\naccess, refresh, redirect]
+    end
+    shared[UI partagée\nstyled/, i18n, helpers]
+    pages --> authBoundary
+    pages --> structure
+    pages --> formAdmin
+    pages --> formRunner
+    formAdmin --> fieldTypes
+    formRunner --> fieldTypes
+    formRunner --> submissionHook
+    pages --> graphql
+    submissionHook --> graphql
+    authBoundary --> graphql
+    graphql --> apollo
+    authBoundary --> browserAuth
+    apollo --> browserAuth
+    pages --> shared
+    formAdmin --> shared
+    formRunner --> shared
+```
+
+Le produit couvre l’authentification et l’administration, l’édition et la publication de formulaires, onze types de champs déclarés par l’API, la logique conditionnelle, les soumissions progressives, deux layouts répondant, l’internationalisation, les statistiques, les exports, les emails et les webhooks. Les principaux risques de refacto backend sont le gros agrégat `Form` couplé à TypeORM, un flux unique de mise à jour qui réécrit champs/options/logique/hooks/design/notifications/pages, trois dialectes SGBD et l’absence de suite de tests applicatifs dans le checkout audité.
+
 
 ## Contribuer
 

@@ -124,24 +124,82 @@ CCB will first use `ccb-ohmyform` as its benchmark target. CI/CD will clone this
 
 #### Current OhMyForm architecture and state
 
-The audited checkout (`c099827`) deploys Next.js public and administration pages behind Nginx, with a NestJS/Apollo GraphQL API. The API combines resolvers, services, and TypeORM entities; it persists to SQLite, PostgreSQL, or MariaDB, and can use Redis subscriptions, SMTP, and webhooks.
+The audited checkout (`c099827`) uses a technical three-tier backend rather than clean/hexagonal architecture. The diagrams below describe code dependencies, not deployment topology.
+
+##### Backend — current three-tier code architecture
 
 ```mermaid
 flowchart LR
-    respondent[Respondent] -->|accesses| nginx[Nginx / Supervisor]
-    admin[Administrator] -->|administers| nginx
-    nginx -->|/| ui[Next.js UI\npublic and admin]
-    nginx -->|/graphql + WebSocket| api[NestJS / Apollo GraphQL]
-    api --> resolvers[Resolvers\naccess control, IDs, cache]
-    resolvers --> services[Services\nforms, submissions, auth]
-    services --> entities[TypeORM entities\nforms, fields, pages, submissions]
-    entities --> db[(SQLite / PostgreSQL / MariaDB)]
-    api -.->|optional pub/sub| redis[(Redis)]
-    services -->|emails| smtp[SMTP]
-    services -->|notifications| webhooks[Third-party webhooks]
+    subgraph presentation[Presentation — GraphQL]
+        resolver[resolver/\nqueries, mutations, field resolvers]
+        dto[dto/\nGraphQL inputs and models]
+        boundary[guard/, pipe/, decorator/\nauth, roles, ID lookup]
+    end
+    subgraph application[Application services]
+        formService[service/form/\ncreate, update, statistics]
+        submissionService[service/submission/\nstart, save field, finish]
+        accountService[service/auth/, user/, profile/]
+    end
+    subgraph data[Data and persistence]
+        entity[entity/\nTypeORM entities and embedded values]
+        repository[TypeORM repositories]
+        migrations[migrations/\nSQLite, PostgreSQL, MariaDB]
+    end
+    resolver -->|binds| dto
+    boundary -->|protects and resolves arguments| resolver
+    resolver -->|invokes| formService
+    resolver -->|invokes| submissionService
+    resolver -->|invokes| accountService
+    formService -->|mutates| entity
+    submissionService -->|mutates| entity
+    accountService -->|mutates| entity
+    formService --> repository
+    submissionService --> repository
+    accountService --> repository
+    repository -->|maps| entity
 ```
 
-The core product covers authentication and administration, form building and publication, eleven API-declared field types, conditional logic, progressive submissions, two respondent layouts, localisation, statistics, exports, emails, and webhooks. Its main refactoring risks are the large `Form` aggregate coupled to TypeORM, a single update flow that rewrites fields/options/logic/hooks/design/notifications/pages, three database dialects, and no application test suite found in the audited checkout.
+##### Frontend — current code architecture
+
+```mermaid
+flowchart LR
+    subgraph routes[Route and screen layer]
+        pages[pages/\npublic forms, admin, login, register]
+        authBoundary[with.auth.tsx\nroute access]
+        structure[structure.tsx, sidemenu.tsx\nscreen shell]
+    end
+    subgraph features[Feature UI layer]
+        formAdmin[components/form/admin/\nform builder, logic, design, hooks]
+        formRunner[components/form/layouts/\ncard and slider respondent flows]
+        fieldTypes[components/form/types/\nfield editors and inputs]
+        submissionHook[use.submission.ts\nstart, save, finish]
+    end
+    subgraph state[Data and state layer]
+        graphql[graphql/\nqueries, mutations, fragments]
+        apollo[Apollo client\ncache and auth header]
+        browserAuth[localStorage\naccess, refresh, redirect]
+    end
+    shared[Shared UI\nstyled/, i18n, helpers]
+    pages --> authBoundary
+    pages --> structure
+    pages --> formAdmin
+    pages --> formRunner
+    formAdmin --> fieldTypes
+    formRunner --> fieldTypes
+    formRunner --> submissionHook
+    pages --> graphql
+    submissionHook --> graphql
+    authBoundary --> graphql
+    graphql --> apollo
+    authBoundary --> browserAuth
+    apollo --> browserAuth
+    pages --> shared
+    formAdmin --> shared
+    formRunner --> shared
+```
+
+The core product covers authentication and administration, form building and publication, eleven API-declared field types, conditional logic, progressive submissions, two respondent layouts, localisation, statistics, exports, emails, and webhooks. The backend’s main refactoring risks are its large `Form` aggregate coupled to TypeORM, a single update flow that rewrites fields/options/logic/hooks/design/notifications/pages, three database dialects, and no application test suite found in the audited checkout.
+
 
 ## Contributing
 
