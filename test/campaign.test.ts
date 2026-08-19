@@ -55,6 +55,7 @@ test('runs paired conditions, gates before scoring, and preserves provenance', a
       await writeFile(resolve(input.workspace, 'candidate.txt'), `${input.condition}\n`)
       return {
         status: 'completed',
+        error: null,
         model: 'fixture-model',
         provider: 'fixture-provider',
         promptTokens: 10,

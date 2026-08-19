@@ -75,6 +75,7 @@ export interface AgentInput {
 
 export interface AgentOutput {
   status: 'completed' | 'agent_error'
+  error: string | null
   model: string
   provider: string | null
   promptTokens: number
@@ -102,6 +103,7 @@ export interface RunRecord {
   pairId: string
   condition: Condition
   status: 'scored' | 'functional_failed' | 'agent_error' | 'evaluator_error'
+  agentError: string | null
   targetCommit: string
   targetTree: string
   graceContextDigest: string

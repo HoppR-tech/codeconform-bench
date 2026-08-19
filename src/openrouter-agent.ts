@@ -40,6 +40,7 @@ export class OpenRouterAgent {
     let hasCost = false
     let provider: string | null = null
     let toolOutputBytes = 0
+    let agentError: string | null = null
 
     try {
       for (let step = 0; step < this.limits.maxSteps; step += 1) {
@@ -83,6 +84,7 @@ export class OpenRouterAgent {
         if (calls.length === 0) {
           return {
             status: 'completed',
+            error: null,
             model: response.model,
             provider,
             promptTokens,
@@ -105,11 +107,13 @@ export class OpenRouterAgent {
         }
       }
     } catch (error) {
-      messages.push({ role: 'system', content: `Harness error: ${error instanceof Error ? error.message : 'unknown error'}` })
+      agentError = error instanceof Error ? error.message : 'unknown error'
+      messages.push({ role: 'system', content: `Harness error: ${agentError}` })
     }
 
     return {
       status: 'agent_error',
+      error: agentError,
       model: this.model.id,
       provider,
       promptTokens,

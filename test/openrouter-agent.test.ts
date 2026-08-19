@@ -35,6 +35,7 @@ test('stops before feeding oversized tool output back to the model', async () =>
   }, tools)
 
   assert.equal(result.status, 'agent_error')
+  assert.equal(result.error, 'agent tool-output budget exceeded')
   assert.equal(requests, 1)
   assert.ok(requestedMaxTokens > 0 && requestedMaxTokens < 10_000)
   assert.match(JSON.stringify(result.trace), /agent tool-output budget exceeded/)

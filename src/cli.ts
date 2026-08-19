@@ -34,6 +34,8 @@ if (!manifestPath || process.argv.length !== 3) {
       evaluate: (workspace, pairId, condition) => evaluator.evaluate(workspace, pairId, condition),
     })
     console.log(JSON.stringify(result.aggregate, null, 2))
+    const infrastructureErrors = result.records.filter((record) => record.status === 'agent_error' || record.status === 'evaluator_error').length
+    if (infrastructureErrors > 0) throw new Error(`campaign incomplete: ${infrastructureErrors} infrastructure error(s)`)
   } catch (error) {
     console.error(error instanceof Error ? error.message : 'benchmark failed')
     process.exitCode = 1

@@ -68,6 +68,7 @@ jobs:
           name: ohmyform-benchmark-${{ github.run_id }}
           path: |
             .bench/results/ohmyform-submission-start-v1/aggregate.json
-            .bench/results/ohmyform-submission-start-v1/runs/*-record.json
+            .bench/results/ohmyform-submission-start-v1/runs/pair-*.json
+            !.bench/results/ohmyform-submission-start-v1/runs/*-trace.json
           if-no-files-found: warn
           retention-days: 30

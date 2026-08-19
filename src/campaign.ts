@@ -157,6 +157,7 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
         pairId,
         condition,
         status,
+        agentError: agent.error,
         targetCommit: manifest.target.commit,
         targetTree: manifest.target.tree,
         graceContextDigest: manifest.graceContextDigest,
