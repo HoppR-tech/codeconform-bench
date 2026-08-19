@@ -126,7 +126,7 @@ npm ci --ignore-scripts
 npm test
 ```
 
-The paid campaign runs through `.github/workflows/ohmyform-benchmark.yml`, using the repository’s `OPENROUTER_API_KEY` secret. The workflow prepares the ignored target, evaluator, and Linux dependency inputs, then uploads only the aggregate and provenance records—not candidate workspaces or raw model traces. See `docs/ia/benchmark-bootstrap/user-guide.md` for the exact retest sequence.
+The paid campaigns run through `.github/workflows/benchmarks.yml`, using the repository’s `OPENROUTER_API_KEY` secret. Harness checks and each benchmark appear as separate jobs in the GitHub Actions graph. Every benchmark prepares its ignored target, evaluator, and Linux dependency inputs, then uploads only its aggregate and provenance records—not candidate workspaces or raw model traces. See `docs/ia/benchmark-bootstrap/user-guide.md` for the exact retest sequence.
 
 ### First documented benchmark target
 

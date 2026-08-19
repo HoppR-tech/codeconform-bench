@@ -1,4 +1,4 @@
-name: OhMyForm architecture benchmark
+name: Architecture benchmarks
 
 on:
   workflow_dispatch:
@@ -13,7 +13,27 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  benchmark:
+  quality:
+    name: Harness · build and tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out benchmark harness
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and test harness
+        run: npm ci && npm test
+
+  benchmark-ohmyform-v1:
+    name: Benchmark · OhMyForm · submission-start v1
+    needs: quality
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[run benchmark]')
     runs-on: ubuntu-24.04
     timeout-minutes: 360
@@ -30,8 +50,8 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install and verify harness
-        run: npm ci && npm test
+      - name: Install and build harness
+        run: npm ci && npm run build
 
       - name: Prepare pinned campaign inputs
         run: |

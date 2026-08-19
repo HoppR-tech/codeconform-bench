@@ -126,7 +126,7 @@ npm ci --ignore-scripts
 npm test
 ```
 
-La campagne payante s’exécute via `.github/workflows/ohmyform-benchmark.yml` avec le secret de repository `OPENROUTER_API_KEY`. Le workflow prépare la cible, l’évaluateur et les dépendances Linux ignorés, puis publie seulement l’agrégat et les preuves de provenance—jamais les workspaces candidats ni les traces modèle brutes. Le guide `docs/ia/benchmark-bootstrap/user-guide.md` donne la procédure exacte.
+Les campagnes payantes s’exécutent via `.github/workflows/benchmarks.yml` avec le secret de repository `OPENROUTER_API_KEY`. Les contrôles du harness et chaque benchmark apparaissent comme des jobs séparés dans le graphe GitHub Actions. Chaque benchmark prépare sa cible, son évaluateur et ses dépendances Linux ignorés, puis publie seulement son agrégat et ses preuves de provenance—jamais les workspaces candidats ni les traces modèle brutes. Le guide `docs/ia/benchmark-bootstrap/user-guide.md` donne la procédure exacte.
 
 ### Première cible de benchmark
 
