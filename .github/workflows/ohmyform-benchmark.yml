@@ -1,0 +1,72 @@
+name: OhMyForm architecture benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/ccb-ohmyform-docs]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ohmyform-architecture-benchmark-v1
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[run benchmark]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Check out benchmark harness
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and verify harness
+        run: npm ci && npm test
+
+      - name: Prepare pinned campaign inputs
+        run: |
+          set -euo pipefail
+          mkdir -p .bench/targets .bench/dependencies
+          git clone --filter=blob:none https://github.com/HoppR-tech/ccb-ohmyform.git .bench/targets/ccb-ohmyform
+          git -C .bench/targets/ccb-ohmyform checkout --detach 0f602c646447cb8efc0ad346a2bf4869c30d2360
+          git clone --filter=blob:none --branch benchmark/ohmyform-v1 https://github.com/HoppR-tech/ccb-evaluator.git .bench/evaluator
+          git -C .bench/evaluator checkout --detach 6f8b1bb5c2724da78bfeba72fb96af8dca546d84
+          npm ci --ignore-scripts --prefix .bench/evaluator
+          mkdir -p .bench/dependencies/ohmyform-v1-api
+          cp .bench/targets/ccb-ohmyform/api/package.json .bench/targets/ccb-ohmyform/api/yarn.lock .bench/dependencies/ohmyform-v1-api/
+          docker run --rm \
+            --mount "type=bind,source=${{ github.workspace }}/.bench/dependencies/ohmyform-v1-api,target=/work" \
+            --workdir /work \
+            node@sha256:cd59a61258b82b86c1ff0ead50c8a689f6c3483c5ed21036e11ee741add419eb \
+            yarn install --frozen-lockfile
+
+      - name: Require OpenRouter credential
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: test -n "$OPENROUTER_API_KEY"
+
+      - name: Run five paired baseline and Grace conditions
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: node dist/src/cli.js campaigns/ohmyform-v1.json
+
+      - name: Upload aggregate and provenance records
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ohmyform-benchmark-${{ github.run_id }}
+          path: |
+            .bench/results/ohmyform-submission-start-v1/aggregate.json
+            .bench/results/ohmyform-submission-start-v1/runs/*-record.json
+          if-no-files-found: warn
+          retention-days: 30

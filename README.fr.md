@@ -13,7 +13,7 @@ Pour chaque tâche, CCB exécute deux fois le même modèle, dans des conditions
 - **Baseline** — le modèle travaille sans Grace.
 - **Grace** — le même modèle travaille avec Grace.
 
-Le code produit est évalué par des règles d’architecture exécutables et invisibles au modèle. Une gate fonctionnelle s’exécute d’abord : un code qui ne compile pas ou casse la suite de tests fonctionnels existants est déclaré en échec fonctionnel et ne reçoit pas de score d’architecture.
+Le code produit est évalué par des règles d’architecture exécutables isolées du modèle. Une gate de caractérisation immuable, extérieure au checkout candidat, s’exécute d’abord : un code qui casse le contrat fonctionnel épinglé est déclaré en échec fonctionnel et ne reçoit pas de score d’architecture.
 
 CCB rend l’effet d’un guidage architectural mesurable, reproductible et réfutable.
 
@@ -37,8 +37,8 @@ flowchart LR
     T --> G[Même modèle + Grace]
     B --> F1[Gate fonctionnelle]
     G --> F2[Gate fonctionnelle]
-    F1 -->|vert| A1[Règles d'architecture cachées]
-    F2 -->|vert| A2[Règles d'architecture cachées]
+    F1 -->|vert| A1[Règles d'architecture isolées]
+    F2 -->|vert| A2[Règles d'architecture isolées]
     A1 --> S1[Score baseline]
     A2 --> S2[Score Grace]
     S1 --> D[Delta mesuré]
@@ -54,29 +54,30 @@ Le protocole est figé et publié avant les runs :
 5. L’évaluateur s’exécute hors du workspace de l’agent ; ses règles ne sont pas accessibles au modèle.
 6. Les résultats publient médianes, intervalles de confiance, données brutes de chaque run et versions exactes des modèles.
 
-## Architecture proposée du benchmark
+## Architecture implémentée du benchmark
 
-L’architecture proposée sépare les workspaces des agents de l’évaluateur privé. La CI/CD fournit un dépôt cible épinglé aux runs baseline et Grace, dans les mêmes conditions. Seuls les runs qui réussissent la gate fonctionnelle reçoivent un score d’architecture.
+Le harness Node de confiance appelle directement OpenRouter et expose quatre outils : lister, lire et écrire dans le candidat, puis lancer une commande de validation nommée. Les commandes s’exécutent sur un montage candidat en lecture seule dans Docker, sans réseau, credentials, socket Docker ni montage de l’évaluateur. Le probe fonctionnel final n’est monté qu’après la fin de l’agent ; ses assertions restent dans le processus hôte. L’évaluateur n’est introduit qu’après la réussite de cette gate.
 
 ```mermaid
 flowchart LR
-    accTitle: Architecture proposée du benchmark CCB
+    accTitle: Architecture implémentée du benchmark CCB
     accDescr {
-      La CI/CD clone un dépôt cible à une révision épinglée et crée des workspaces baseline et Grace identiques.
-      Les deux workspaces passent par une gate fonctionnelle. Les runs réussis sont évalués en privé et combinés avec les métadonnées de run dans les résultats du benchmark.
+      Le harness de confiance crée des workspaces candidats appariés et appelle le même modèle avec et sans Grace.
+      Les commandes candidat s’exécutent dans un conteneur sans réseau. Les candidats fonctionnels sont ensuite notés par un évaluateur séparé.
     }
-    CI[CI/CD CCB] -->|clone| T[Dépôt cible]
-    T -->|épingle la révision| B[Workspace baseline]
-    T -->|épingle la révision| G[Workspace Grace]
-    B -->|exécute| FB[Gate fonctionnelle]
-    G -->|exécute| FG[Gate fonctionnelle]
-    FB -->|autorise| E[Évaluateur privé]
-    FG -->|autorise| E
-    E -->|produit| R[Résultats du benchmark]
-    M[Versions épinglées et métadonnées de run] -->|identifie| R
+    M[Manifest de campagne immuable] --> H[Harness SDK de confiance]
+    T[Commit et tree cibles épinglés] --> H
+    H --> B[Workspace baseline]
+    H --> G[Workspace Grace]
+    B --> X[Commandes Docker autorisées]
+    G --> X
+    X --> F[Gate fonctionnelle]
+    F -->|vert| E[Évaluateur séparé]
+    F -->|rouge| R[Run sans score d'architecture]
+    E --> R[Agrégat et provenance]
 ```
 
-Équivalent textuel : la CI/CD clone un dépôt cible épinglé pour baseline et Grace. Chaque run doit réussir la gate fonctionnelle avant que l’évaluateur privé séparé produise des résultats d’architecture, identifiés par les versions épinglées et les métadonnées de run.
+L’ordre baseline/Grace alterne entre les paires. Le delta Grace utilise uniquement les paires complètes et scorées ; les échecs fonctionnels ou d’évaluation restent des statuts séparés, jamais des zéros imputés.
 
 ## Matrice initiale des modèles
 
@@ -108,19 +109,28 @@ La matrice prévue couvre Java/Kotlin, C#/.NET, TypeScript, Python et Go.
 
 CCB traite l’isolation de l’évaluation comme une propriété fondamentale :
 
-- les règles d’architecture sont exécutées depuis un dépôt privé distinct ou un artefact CI ;
-- le workspace de l’agent contient le code et les tests fonctionnels, jamais la suite d’évaluation ;
-- les noms des jobs et fichiers d’évaluation sont neutres ;
-- les traces d’exécution sont conservées pour vérifier que les règles cachées n’ont pas été lues ;
-- chaque release du benchmark épingle les templates, prompts, identifiants de modèles, version du harness et règles d’évaluation.
+- l’évaluateur et le rule pack versionné restent hors du checkout candidat ;
+- le modèle ne reçoit ni shell, ni outil web/search/fetch, ni chemin d’évaluateur, ni credential ;
+- les commandes candidat s’exécutent dans Docker avec `--network none`, un workspace et des dépendances vérifiées par digest en lecture seule, des ressources bornées, un seul appel de validation et aucun socket Docker ;
+- commit/tree cible et digest de l’export matérialisé, digest du contexte Grace, digests des montages de dépendances/probe, image du conteneur, runner d’évaluation, rule pack, politique fournisseur, prompts, artefacts candidats et traces sont épinglés ou hashés ;
+- l’évaluateur ne renvoie que le statut, les compteurs et les scores agrégés ; aucun diagnostic détaillé n’est envoyé au modèle.
 
-## État du projet
+Le benchmark vérifie un comportement observable, pas la résistance à un programme volontairement conscient du test. L’agent ne reçoit jamais le probe final ni ses assertions ; un code qui détecte intentionnellement l’environnement de validation pour le traiter à part sort du modèle de menace expérimental.
 
-CCB définit et valide actuellement son premier protocole public. Le dépôt publiera progressivement le harness exécutable, les adaptateurs de langage, les templates de tâches, la spécification de score et les résultats agrégés.
+## État et vérification
 
-### Première cible de benchmark documentée
+La première tranche exécutable est `campaigns/ohmyform-v1.json` : cinq paires sur la tâche OhMyForm submission-start épinglée. Le harness public, le parseur strict de manifest, la boucle d’outils OpenRouter, l’exécuteur Docker, la gate fonctionnelle, l’adaptateur d’évaluation, l’agrégation appariée et les preuves de provenance sont implémentés.
 
-CCB utilisera d’abord `ccb-ohmyform` comme cible de benchmark. La CI/CD clonera ce dépôt pour exécuter les runs.
+```sh
+npm ci --ignore-scripts
+npm test
+```
+
+La campagne payante s’exécute via `.github/workflows/ohmyform-benchmark.yml` avec le secret de repository `OPENROUTER_API_KEY`. Le workflow prépare la cible, l’évaluateur et les dépendances Linux ignorés, puis publie seulement l’agrégat et les preuves de provenance—jamais les workspaces candidats ni les traces modèle brutes. Le guide `docs/ia/benchmark-bootstrap/user-guide.md` donne la procédure exacte.
+
+### Première cible de benchmark
+
+Le checkout OhMyForm audité et la campagne sont épinglés dans `campaigns/ohmyform-v1.json`.
 
 #### Architecture actuelle et état d’OhMyForm
 

@@ -1,0 +1,3 @@
+[tasks.check]
+description = "Build and test CodeConform-Bench"
+run = "npm test"

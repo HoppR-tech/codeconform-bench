@@ -13,7 +13,7 @@ For every task, CCB runs the same model under the same conditions twice:
 - **Baseline** — the model works without Grace.
 - **Grace** — the same model works with Grace.
 
-The benchmark evaluates the resulting code with hidden, executable architecture rules. A functional gate runs first: code that does not build or breaks the existing functional test suite is reported as a functional failure and receives no architectural score.
+The benchmark evaluates the resulting code with isolated, executable architecture rules. An immutable characterization gate runs first from outside the candidate checkout: code that breaks the pinned functional contract is reported as a functional failure and receives no architectural score.
 
 CCB is designed to make the effect of architectural guidance measurable, reproducible, and falsifiable.
 
@@ -37,8 +37,8 @@ flowchart LR
     T --> G[Same model + Grace]
     B --> F1[Functional gate]
     G --> F2[Functional gate]
-    F1 -->|pass| A1[Hidden architecture rules]
-    F2 -->|pass| A2[Hidden architecture rules]
+    F1 -->|pass| A1[Isolated architecture rules]
+    F2 -->|pass| A2[Isolated architecture rules]
     A1 --> S1[Baseline score]
     A2 --> S2[Grace score]
     S1 --> D[Measured delta]
@@ -54,29 +54,30 @@ The protocol is fixed and published before benchmark runs:
 5. The evaluator runs separately from the agent workspace; its rules are not available to the model.
 6. Results include medians, confidence intervals, raw run data, and exact model versions.
 
-## Proposed benchmark architecture
+## Implemented benchmark architecture
 
-The proposed architecture keeps agent workspaces separate from the private evaluator. A target repository pinned by CI/CD supplies identical baseline and Grace runs. Only runs that pass the functional gate receive an architecture score.
+The trusted Node harness calls OpenRouter directly and exposes four tools: candidate-scoped file listing, reading, writing, and one named validation command. Commands run against a read-only candidate mount in Docker without network, credentials, a Docker socket, or evaluator mounts. The final functional probe is mounted only after the agent finishes; its assertions remain in the host process. The evaluator is introduced only after that gate passes.
 
 ```mermaid
 flowchart LR
-    accTitle: Proposed CCB benchmark architecture
+    accTitle: Implemented CCB benchmark architecture
     accDescr {
-      CI/CD clones a target repository at a pinned revision and creates identical baseline and Grace workspaces.
-      Both workspaces pass through a functional gate. Passing runs are evaluated privately and combined with run metadata into benchmark results.
+      The trusted harness creates paired candidate workspaces and calls the same model with and without Grace.
+      Candidate commands run in a no-network container. Passing candidates are scored by a separate evaluator after the agent finishes.
     }
-    CI[CCB CI/CD] -->|clones| T[Target repository]
-    T -->|pins revision| B[Baseline workspace]
-    T -->|pins revision| G[Grace workspace]
-    B -->|runs| FB[Functional gate]
-    G -->|runs| FG[Functional gate]
-    FB -->|permits| E[Private evaluator]
-    FG -->|permits| E
-    E -->|produces| R[Benchmark results]
-    M[Pinned versions and run metadata] -->|identifies| R
+    M[Immutable campaign manifest] --> H[Trusted SDK harness]
+    T[Pinned target commit and tree] --> H
+    H --> B[Baseline workspace]
+    H --> G[Grace workspace]
+    B --> X[Allowlisted Docker commands]
+    G --> X
+    X --> F[Functional gate]
+    F -->|pass| E[Separate evaluator]
+    F -->|fail| R[Run record without architecture score]
+    E --> R[Aggregate and provenance]
 ```
 
-Text equivalent: CI/CD clones a pinned target repository for baseline and Grace. Each run must pass the functional gate before the separate private evaluator produces architecture results, identified with the pinned versions and run metadata.
+Baseline/Grace execution order is counterbalanced between pairs. The aggregate uses only complete scored pairs for Grace delta; functional and evaluator failures are reported separately rather than imputed as zero.
 
 ## Initial model matrix
 
@@ -108,15 +109,24 @@ The planned language matrix includes Java/Kotlin, C#/.NET, TypeScript, Python, a
 
 CCB treats evaluation isolation as a core property:
 
-- architecture rules run from a separate private evaluation repository or CI artifact;
-- the agent workspace contains code and functional tests, not the evaluation suite;
-- evaluation job and file names are neutral;
-- execution traces are retained to verify that hidden rules were not read;
-- every benchmark release pins templates, prompts, model identifiers, harness version, and evaluation rules.
+- the evaluator and versioned rule pack live outside the candidate checkout;
+- the model receives no shell, web/search/fetch tool, evaluator path, or credential;
+- candidate commands run in Docker with `--network none`, a read-only workspace and digest-verified dependency mounts, bounded resources, one validation-command call, and no Docker socket;
+- target commit/tree and materialized-export digest, Grace-context digest, dependency/probe mount digests, container image, evaluator runner, rule pack, provider policy, prompts, candidate artifacts, and traces are pinned or content-digested;
+- the evaluator returns only aggregate status, counts, and scores; detailed diagnostics are not sent to the model.
 
-## Status
+The benchmark tests observable behavior, not resistance to a deliberately test-aware program. The agent never receives the final probe or assertions; runtime code that intentionally detects and special-cases the validation environment is outside the experimental threat model.
 
-CCB is currently defining and validating its first public protocol. The repository will publish the runnable harness, language adapters, task templates, scoring specification, and aggregated results as they become available.
+## Status and verification
+
+The first runnable slice is `campaigns/ohmyform-v1.json`: five paired runs against the pinned OhMyForm submission-start task. The public harness, strict manifest parser, OpenRouter tool loop, Docker executor, functional gating, evaluator adapter, paired aggregation, and provenance records are implemented.
+
+```sh
+npm ci --ignore-scripts
+npm test
+```
+
+The paid campaign runs through `.github/workflows/ohmyform-benchmark.yml`, using the repository’s `OPENROUTER_API_KEY` secret. The workflow prepares the ignored target, evaluator, and Linux dependency inputs, then uploads only the aggregate and provenance records—not candidate workspaces or raw model traces. See `docs/ia/benchmark-bootstrap/user-guide.md` for the exact retest sequence.
 
 ### First documented benchmark target
 
