@@ -45,6 +45,7 @@ jobs:
           mkdir -p .bench/dependencies/ohmyform-v1-api
           cp .bench/targets/ccb-ohmyform/api/package.json .bench/targets/ccb-ohmyform/api/yarn.lock .bench/dependencies/ohmyform-v1-api/
           docker run --rm \
+            --platform linux/amd64 \
             --mount "type=bind,source=${{ github.workspace }}/.bench/dependencies/ohmyform-v1-api,target=/work" \
             --workdir /work \
             node@sha256:cd59a61258b82b86c1ff0ead50c8a689f6c3483c5ed21036e11ee741add419eb \
