@@ -56,7 +56,6 @@ export class OpenRouterAgent {
             maxTokens,
             tools: candidateToolDefinitions,
             toolChoice: 'auto',
-            parallelToolCalls: false,
             provider: {
               order: [...this.model.providerOrder],
               allowFallbacks: this.model.allowFallbacks,

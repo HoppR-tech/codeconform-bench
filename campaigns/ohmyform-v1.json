@@ -18,7 +18,7 @@
   "order": ["baseline", "grace"],
   "model": {
     "id": "openai/gpt-5.6-terra",
-    "providerOrder": ["OpenAI"],
+    "providerOrder": ["openai"],
     "allowFallbacks": false,
     "reasoningEffort": "high",
     "maxTokens": 32000
