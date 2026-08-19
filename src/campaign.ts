@@ -1,6 +1,6 @@
-import { lstat, mkdir, readFile, realpath, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, realpath, writeFile } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
-import type { CampaignAggregate, CampaignManifest, CampaignPorts, CampaignResult, Condition, ConditionSummary, RunRecord } from './contracts.js'
+import type { AgentOutput, CampaignAggregate, CampaignManifest, CampaignPorts, CampaignResult, Condition, ConditionSummary, RunRecord } from './contracts.js'
 import { hashTree, sha256 } from './digest.js'
 import { renderCampaignReport } from './report.js'
 
@@ -104,8 +104,6 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
   }
   await mkdir(resolve(output, 'runs'), { recursive: true })
   await mkdir(resolve(output, 'workspaces'), { recursive: true })
-  const graceContext = await readFile(manifest.graceContextFile, 'utf8')
-  if (sha256(graceContext) !== manifest.graceContextDigest) throw new Error('Grace context does not match manifest digest')
   const manifestJson = `${JSON.stringify(manifest, null, 2)}\n`
   await writeFile(resolve(output, 'campaign-manifest.json'), manifestJson)
   const manifestDigest = sha256(manifestJson)
@@ -118,13 +116,27 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
       const workspace = resolve(output, 'workspaces', `${pairId}-${condition}`)
       await ports.prepareWorkspace(workspace)
       const startedAt = Date.now()
-      const agent = await ports.runAgent({
-        condition,
-        pairId,
-        workspace,
-        task: manifest.task,
-        ...(condition === 'grace' ? { graceContext } : {}),
-      })
+      let agent: AgentOutput
+      try {
+        agent = await ports.runAgent({
+          condition,
+          pairId,
+          workspace,
+          task: manifest.task,
+        })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'agent failed'
+        agent = {
+          status: 'agent_error',
+          error: message,
+          model: manifest.model.id,
+          provider: null,
+          promptTokens: 0,
+          completionTokens: 0,
+          cost: null,
+          trace: [{ role: 'system', content: `Harness error: ${message}` }],
+        }
+      }
       const traceJson = `${JSON.stringify(agent.trace, null, 2)}\n`
       const traceDigest = sha256(traceJson)
       await writeFile(resolve(output, 'runs', `${pairId}-${condition}-trace.json`), traceJson)
@@ -161,7 +173,6 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
         agentError: agent.error,
         targetCommit: manifest.target.commit,
         targetTree: manifest.target.tree,
-        graceContextDigest: manifest.graceContextDigest,
         candidateDigest,
         traceDigest,
         model: agent.model,
@@ -181,7 +192,7 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
   }
 
   const aggregate = aggregateRecords(records, manifest.bootstrapSamples, manifest.seed)
-  await writeFile(resolve(output, 'aggregate.json'), `${JSON.stringify({ campaignId: manifest.campaignId, manifestDigest, graceContextDigest: manifest.graceContextDigest, ...aggregate }, null, 2)}\n`)
-  await writeFile(resolve(output, 'report.md'), renderCampaignReport(manifest.campaignId, manifestDigest, manifest.graceContextDigest, records, aggregate))
+  await writeFile(resolve(output, 'aggregate.json'), `${JSON.stringify({ campaignId: manifest.campaignId, manifestDigest, ...aggregate }, null, 2)}\n`)
+  await writeFile(resolve(output, 'report.md'), renderCampaignReport(manifest.campaignId, manifestDigest, manifest.grace.mcpUrl, records, aggregate))
   return { records, aggregate }
 }

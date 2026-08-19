@@ -1,12 +1,14 @@
 import { OpenRouter } from '@openrouter/sdk'
 import type { ChatMessages } from '@openrouter/sdk/models'
 import { candidateToolDefinitions, CandidateTools } from './candidate-tools.js'
+import type { GraceTools } from './grace-mcp.js'
 import type { AgentInput, AgentOutput, CampaignManifest } from './contracts.js'
 
 const SYSTEM_PROMPT = `You are editing one candidate repository for an architecture benchmark.
 Use only the declared tools. Do not request web access, external repositories, hidden tests, evaluator rules, credentials, or paths outside the candidate checkout.
 Inspect before writing, make the smallest complete change, run the approved validation command, then finish with a concise summary.`
 const PROMPT_TOKEN_OVERHEAD = 1_024
+const COST_SCALE = 1_000_000_000_000
 
 export class OpenRouterAgent {
   private readonly client: OpenRouter
@@ -24,15 +26,19 @@ export class OpenRouterAgent {
     })
   }
 
-  async run(input: AgentInput, tools: CandidateTools): Promise<AgentOutput> {
+  async run(input: AgentInput, tools: CandidateTools, grace?: GraceTools): Promise<AgentOutput> {
+    const graceTools = input.condition === 'grace' ? grace : undefined
+    if (input.condition === 'grace' && !graceTools) throw new Error('Grace condition requires an MCP connection')
+    const candidateToolNames = new Set(candidateToolDefinitions.flatMap((tool) => 'function' in tool ? [tool.function.name] : []))
+    const collision = graceTools?.definitions.find((tool) => candidateToolNames.has(tool.function.name))
+    if (collision) throw new Error(`Grace MCP tool conflicts with candidate tool: ${collision.function.name}`)
+    const toolDefinitions = [...candidateToolDefinitions, ...(graceTools?.definitions ?? [])]
+    const graceToolNames = new Set(graceTools?.definitions.map((tool) => tool.function.name) ?? [])
     const messages: ChatMessages[] = [
       { role: 'system', content: SYSTEM_PROMPT },
-      {
-        role: 'user',
-        content: `${input.task.prompt}\n\nArchitecture intent shared by both conditions:\n${input.task.architectureIntent}`,
-      },
+      ...(graceTools?.instructions ? [{ role: 'system' as const, content: `Grace MCP instructions:\n${graceTools.instructions}` }] : []),
+      { role: 'user', content: input.task.prompt },
     ]
-    if (input.graceContext) messages.splice(1, 0, { role: 'system', content: `Grace guidance:\n${input.graceContext}` })
 
     let promptTokens = 0
     let completionTokens = 0
@@ -45,7 +51,7 @@ export class OpenRouterAgent {
     try {
       for (let step = 0; step < this.limits.maxSteps; step += 1) {
         const remainingTokens = this.limits.maxTotalTokens - promptTokens - completionTokens
-        const promptTokenReservation = Buffer.byteLength(JSON.stringify({ messages, tools: candidateToolDefinitions })) + PROMPT_TOKEN_OVERHEAD
+        const promptTokenReservation = Buffer.byteLength(JSON.stringify({ messages, tools: toolDefinitions })) + PROMPT_TOKEN_OVERHEAD
         const maxTokens = Math.min(this.model.maxTokens, remainingTokens - promptTokenReservation)
         if (maxTokens < 1) throw new Error('agent token budget exhausted before request')
         const response = await this.client.chat.send({
@@ -54,7 +60,7 @@ export class OpenRouterAgent {
             model: this.model.id,
             messages,
             maxTokens,
-            tools: candidateToolDefinitions,
+            tools: toolDefinitions,
             toolChoice: 'auto',
             provider: {
               order: [...this.model.providerOrder],
@@ -66,18 +72,28 @@ export class OpenRouterAgent {
           },
         })
         if (!('choices' in response)) throw new Error('OpenRouter unexpectedly returned a streaming response')
-        const choice = response.choices[0]
-        if (!choice) throw new Error('OpenRouter returned no completion choice')
-        if (!response.usage || typeof response.usage.promptTokens !== 'number' || typeof response.usage.completionTokens !== 'number') throw new Error('OpenRouter response omitted token usage')
+        if (
+          !response.usage
+          || typeof response.usage.promptTokens !== 'number'
+          || typeof response.usage.completionTokens !== 'number'
+          || typeof response.usage.cost !== 'number'
+          || !Number.isFinite(response.usage.promptTokens)
+          || !Number.isFinite(response.usage.completionTokens)
+          || !Number.isFinite(response.usage.cost)
+          || response.usage.promptTokens < 0
+          || response.usage.completionTokens < 0
+          || response.usage.cost < 0
+        ) throw new Error('OpenRouter response omitted or returned invalid token or cost usage')
         promptTokens += response.usage.promptTokens
         completionTokens += response.usage.completionTokens
-        if (response.usage?.cost != null) {
-          cost += response.usage.cost
-          hasCost = true
-        }
+        cost = Math.round((cost + response.usage.cost) * COST_SCALE) / COST_SCALE
+        hasCost = true
+        if (promptTokens + completionTokens > this.limits.maxTotalTokens) throw new Error('agent token budget exceeded')
+        if (cost > this.limits.maxCostUsd) throw new Error('agent cost budget exceeded')
+        const choice = response.choices[0]
+        if (!choice) throw new Error('OpenRouter returned no completion choice')
         provider = response.openrouterMetadata?.endpoints.available.find((endpoint) => endpoint.selected)?.provider ?? provider
         messages.push(choice.message)
-        if (promptTokens + completionTokens > this.limits.maxTotalTokens) throw new Error('agent token budget exceeded')
 
         const calls = choice.message.toolCalls ?? []
         if (calls.length === 0) {
@@ -96,7 +112,9 @@ export class OpenRouterAgent {
         for (const call of calls) {
           let content: string
           try {
-            content = await tools.execute(call.function.name, call.function.arguments)
+            content = graceToolNames.has(call.function.name)
+              ? await graceTools!.execute(call.function.name, call.function.arguments)
+              : await tools.execute(call.function.name, call.function.arguments)
           } catch (error) {
             content = JSON.stringify({ error: error instanceof Error ? error.message : 'tool failed' })
           }

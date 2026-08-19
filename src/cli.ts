@@ -3,6 +3,7 @@ import { CandidateTools } from './candidate-tools.js'
 import { runCampaign } from './campaign.js'
 import { DockerCommandExecutor } from './docker-executor.js'
 import { FunctionalGate } from './functional-gate.js'
+import { connectGraceMcp } from './grace-mcp.js'
 import { loadManifest } from './manifest.js'
 import { OpenRouterAgent } from './openrouter-agent.js'
 import { ProcessEvaluator } from './process-evaluator.js'
@@ -17,6 +18,8 @@ if (!manifestPath || process.argv.length !== 3) {
     const manifest = await loadManifest(manifestPath)
     const apiKey = process.env.OPENROUTER_API_KEY
     if (!apiKey) throw new Error('OPENROUTER_API_KEY is required')
+    const graceToken = process.env[manifest.grace.tokenEnv]
+    if (!graceToken) throw new Error(`${manifest.grace.tokenEnv} is required`)
 
     const executor = new DockerCommandExecutor(manifest.commandExecutor)
     const targetVerifier = new GitTargetVerifier(manifest.target, manifest.commandExecutor.readOnlyMounts)
@@ -29,7 +32,16 @@ if (!manifestPath || process.argv.length !== 3) {
         await executor.verify(manifest.functionalGate.readOnlyMounts)
       },
       prepareWorkspace: (workspace) => targetVerifier.materialize(workspace),
-      runAgent: async (input) => agent.run(input, new CandidateTools(input.workspace, (name) => executor.runNamed(input.workspace, name))),
+      runAgent: async (input) => {
+        const tools = new CandidateTools(input.workspace, (name) => executor.runNamed(input.workspace, name))
+        if (input.condition === 'baseline') return agent.run(input, tools)
+        const grace = await connectGraceMcp(manifest.grace.mcpUrl, graceToken)
+        try {
+          return await agent.run(input, tools, grace)
+        } finally {
+          await grace.close()
+        }
+      },
       runFunctionalGate: (workspace) => functionalGate.run(workspace),
       evaluate: (workspace, pairId, condition) => evaluator.evaluate(workspace, pairId, condition),
     })

@@ -20,6 +20,11 @@ function integer(value: unknown, name: string, minimum: number): number {
   return value as number
 }
 
+function positiveNumber(value: unknown, name: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) throw new Error(`${name} must be a finite number > 0`)
+  return value
+}
+
 function boolean(value: unknown, name: string): boolean {
   if (typeof value !== 'boolean') throw new Error(`${name} must be a boolean`)
   return value
@@ -53,6 +58,7 @@ export function parseManifest(value: unknown, baseDirectory = process.cwd()): Ca
   const task = object(root.task, 'task')
   const model = object(root.model, 'model')
   const agent = object(root.agent, 'agent')
+  const grace = object(root.grace, 'grace')
   const commandExecutor = object(root.commandExecutor, 'commandExecutor')
   const functionalGate = object(root.functionalGate, 'functionalGate')
   const evaluator = object(root.evaluator, 'evaluator')
@@ -76,11 +82,9 @@ export function parseManifest(value: unknown, baseDirectory = process.cwd()): Ca
   const targetDigest = string(target.digest, 'target.digest')
   const rulePackDigest = string(rulePack.digest, 'evaluator.rulePack.digest')
   const runnerDigest = string(runner.digest, 'evaluator.runner.digest')
-  const graceContextDigest = string(root.graceContextDigest, 'graceContextDigest')
-
 
   if (!SHA_40.test(commit) || !SHA_40.test(tree)) throw new Error('target commit and tree must be full 40-character SHA-1 values')
-  if (![targetDigest, graceContextDigest, rulePackDigest, runnerDigest].every((digest) => SHA_64.test(digest))) throw new Error('target, Grace context, evaluator rule-pack, and runner digests must be sha256:<64 lowercase hex>')
+  if (![targetDigest, rulePackDigest, runnerDigest].every((digest) => SHA_64.test(digest))) throw new Error('target, evaluator rule-pack, and runner digests must be sha256:<64 lowercase hex>')
   if (!image.includes('@sha256:')) throw new Error('commandExecutor.image must be pinned by sha256 digest')
 
 
@@ -90,16 +94,18 @@ export function parseManifest(value: unknown, baseDirectory = process.cwd()): Ca
   }
 
   const requestedCheckout = string(target.checkout, 'target.checkout')
-  const requestedGraceContextFile = string(root.graceContextFile, 'graceContextFile')
   const requestedOutputDirectory = string(root.outputDirectory, 'outputDirectory')
   const requestedRulePackPath = string(rulePack.path, 'evaluator.rulePack.path')
   const requestedRunnerPath = string(runner.path, 'evaluator.runner.path')
   const checkout = isAbsolute(requestedCheckout) ? requestedCheckout : resolve(baseDirectory, requestedCheckout)
-  const graceContextFile = isAbsolute(requestedGraceContextFile) ? requestedGraceContextFile : resolve(baseDirectory, requestedGraceContextFile)
   const outputDirectory = isAbsolute(requestedOutputDirectory) ? requestedOutputDirectory : resolve(baseDirectory, requestedOutputDirectory)
   const rulePackPath = isAbsolute(requestedRulePackPath) ? requestedRulePackPath : resolve(baseDirectory, requestedRulePackPath)
 
   const runnerPath = isAbsolute(requestedRunnerPath) ? requestedRunnerPath : resolve(baseDirectory, requestedRunnerPath)
+  const mcpUrl = string(grace.mcpUrl, 'grace.mcpUrl')
+  if (new URL(mcpUrl).protocol !== 'https:') throw new Error('grace.mcpUrl must use HTTPS')
+  const tokenEnv = string(grace.tokenEnv, 'grace.tokenEnv')
+  if (!/^[A-Z_][A-Z0-9_]*$/.test(tokenEnv)) throw new Error('grace.tokenEnv must be an uppercase environment variable name')
   const reasoningEffort = model.reasoningEffort
   if (reasoningEffort !== undefined && !['high', 'medium', 'low'].includes(reasoningEffort as string)) {
     throw new Error('model.reasoningEffort must be high, medium, or low')
@@ -121,7 +127,6 @@ export function parseManifest(value: unknown, baseDirectory = process.cwd()): Ca
     task: {
       id: string(task.id, 'task.id'),
       prompt: string(task.prompt, 'task.prompt'),
-      architectureIntent: string(task.architectureIntent, 'task.architectureIntent'),
     },
     repetitions: integer(root.repetitions, 'repetitions', 5),
     order,
@@ -135,6 +140,7 @@ export function parseManifest(value: unknown, baseDirectory = process.cwd()): Ca
     },
     agent: {
       maxSteps: integer(agent.maxSteps, 'agent.maxSteps', 1),
+      maxCostUsd: positiveNumber(agent.maxCostUsd, 'agent.maxCostUsd'),
       maxTotalTokens: integer(agent.maxTotalTokens, 'agent.maxTotalTokens', 1),
       maxToolOutputBytes: integer(agent.maxToolOutputBytes, 'agent.maxToolOutputBytes', 1),
     },
@@ -153,8 +159,7 @@ export function parseManifest(value: unknown, baseDirectory = process.cwd()): Ca
         path: rulePackPath,
       },
     },
-    graceContextDigest,
-    graceContextFile,
+    grace: { mcpUrl, tokenEnv },
     outputDirectory,
     bootstrapSamples: integer(root.bootstrapSamples, 'bootstrapSamples', 100),
     seed: integer(root.seed, 'seed', 0),

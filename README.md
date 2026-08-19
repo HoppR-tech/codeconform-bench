@@ -112,7 +112,7 @@ CCB treats evaluation isolation as a core property:
 - the evaluator and versioned rule pack live outside the candidate checkout;
 - the model receives no shell, web/search/fetch tool, evaluator path, or credential;
 - candidate commands run in Docker with `--network none`, a read-only workspace and digest-verified dependency mounts, bounded resources, one validation-command call, and no Docker socket;
-- target commit/tree and materialized-export digest, Grace-context digest, dependency/probe mount digests, container image, evaluator runner, rule pack, provider policy, prompts, candidate artifacts, and traces are pinned or content-digested;
+- target commit/tree and materialized-export digest, Grace MCP endpoint, dependency/probe mount digests, container image, evaluator runner, rule pack, provider policy, prompts, candidate artifacts, and traces are pinned or content-digested;
 - the evaluator returns only aggregate status, counts, and scores; detailed diagnostics are not sent to the model.
 
 The benchmark tests observable behavior, not resistance to a deliberately test-aware program. The agent never receives the final probe or assertions; runtime code that intentionally detects and special-cases the validation environment is outside the experimental threat model.
@@ -126,7 +126,7 @@ npm ci --ignore-scripts
 npm test
 ```
 
-The paid campaigns run through `.github/workflows/benchmarks.yml`, using the repository’s `OPENROUTER_API_KEY` secret. Harness checks and each benchmark appear as separate jobs in the GitHub Actions graph. Every benchmark publishes token usage, OpenRouter cost, paired results, and failures in its Job Summary, and attaches `report.md`, `aggregate.json`, and provenance records as a 30-day artifact. Candidate workspaces and raw model traces are never uploaded. See `docs/ia/benchmark-bootstrap/user-guide.md` for the exact retest sequence.
+Local coding agents read `.mcp.json` and complete Grace OAuth on their first connection. Paid campaigns run through `.github/workflows/benchmarks.yml`; because GitHub Actions is non-interactive, it uses the repository’s `OPENROUTER_API_KEY` and `GRACE_MCP_TOKEN` secrets instead. Only Grace runs connect to the configured Grace SaaS MCP; baseline runs receive neither its instructions nor its tools. Harness checks and each benchmark appear as separate jobs in the GitHub Actions graph. Every benchmark publishes token usage, OpenRouter cost, paired results, and failures in its Job Summary, and attaches `report.md`, `aggregate.json`, and provenance records as a 30-day artifact. Candidate workspaces and raw model traces are never uploaded. See `docs/ia/benchmark-bootstrap/user-guide.md` for the exact retest sequence.
 
 ### First documented benchmark target
 

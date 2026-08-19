@@ -12,6 +12,7 @@
     "node": ">=22"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
     "@openrouter/sdk": "1.2.42"
   },
   "devDependencies": {

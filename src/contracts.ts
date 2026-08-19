@@ -19,7 +19,6 @@ export interface CampaignManifest {
   task: {
     id: string
     prompt: string
-    architectureIntent: string
   }
   repetitions: number
   order: readonly Condition[]
@@ -33,6 +32,7 @@ export interface CampaignManifest {
   }
   agent: {
     maxSteps: number
+    maxCostUsd: number
     maxToolOutputBytes: number
     maxTotalTokens: number
   }
@@ -58,8 +58,10 @@ export interface CampaignManifest {
       path: string
     }
   }
-  graceContextFile: string
-  graceContextDigest: string
+  grace: {
+    mcpUrl: string
+    tokenEnv: string
+  }
   outputDirectory: string
   bootstrapSamples: number
   seed: number
@@ -70,7 +72,6 @@ export interface AgentInput {
   pairId: string
   workspace: string
   task: CampaignManifest['task']
-  graceContext?: string
 }
 
 export interface AgentOutput {
@@ -106,7 +107,6 @@ export interface RunRecord {
   agentError: string | null
   targetCommit: string
   targetTree: string
-  graceContextDigest: string
   candidateDigest: string
   traceDigest: string
   model: string

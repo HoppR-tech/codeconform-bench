@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "grace": {
+      "type": "http",
+      "url": "https://grace-mcp.hoppr.tech/mcp/ccb-benchmark-8169"
+    }
+  }
+}

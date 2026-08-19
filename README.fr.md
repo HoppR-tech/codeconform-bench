@@ -112,7 +112,7 @@ CCB traite l’isolation de l’évaluation comme une propriété fondamentale :
 - l’évaluateur et le rule pack versionné restent hors du checkout candidat ;
 - le modèle ne reçoit ni shell, ni outil web/search/fetch, ni chemin d’évaluateur, ni credential ;
 - les commandes candidat s’exécutent dans Docker avec `--network none`, un workspace et des dépendances vérifiées par digest en lecture seule, des ressources bornées, un seul appel de validation et aucun socket Docker ;
-- commit/tree cible et digest de l’export matérialisé, digest du contexte Grace, digests des montages de dépendances/probe, image du conteneur, runner d’évaluation, rule pack, politique fournisseur, prompts, artefacts candidats et traces sont épinglés ou hashés ;
+- le commit/tree cible et le digest de l’export matérialisé, l’endpoint MCP Grace, les digests des montages de dépendances/probe, l’image du conteneur, le runner d’évaluation, le rule pack, la politique fournisseur, les prompts, les artefacts candidats et les traces sont épinglés ou hashés ;
 - l’évaluateur ne renvoie que le statut, les compteurs et les scores agrégés ; aucun diagnostic détaillé n’est envoyé au modèle.
 
 Le benchmark vérifie un comportement observable, pas la résistance à un programme volontairement conscient du test. L’agent ne reçoit jamais le probe final ni ses assertions ; un code qui détecte intentionnellement l’environnement de validation pour le traiter à part sort du modèle de menace expérimental.
@@ -126,7 +126,7 @@ npm ci --ignore-scripts
 npm test
 ```
 
-Les campagnes payantes s’exécutent via `.github/workflows/benchmarks.yml` avec le secret de repository `OPENROUTER_API_KEY`. Les contrôles du harness et chaque benchmark apparaissent comme des jobs séparés dans le graphe GitHub Actions. Chaque benchmark publie sa consommation de tokens, son coût OpenRouter, ses résultats appariés et ses erreurs dans le Job Summary, puis attache `report.md`, `aggregate.json` et les preuves de provenance dans un artifact conservé 30 jours. Les workspaces candidats et les traces modèle brutes ne sont jamais publiés. Le guide `docs/ia/benchmark-bootstrap/user-guide.md` donne la procédure exacte.
+Les agents de code locaux lisent `.mcp.json` et effectuent l’OAuth Grace lors de leur première connexion. Les campagnes payantes s’exécutent via `.github/workflows/benchmarks.yml` ; GitHub Actions étant non interactif, elles utilisent à la place les secrets de repository `OPENROUTER_API_KEY` et `GRACE_MCP_TOKEN`. Seuls les runs Grace se connectent au MCP du SaaS Grace configuré ; les runs baseline ne reçoivent ni ses instructions ni ses outils. Les contrôles du harness et chaque benchmark apparaissent comme des jobs séparés dans le graphe GitHub Actions. Chaque benchmark publie sa consommation de tokens, son coût OpenRouter, ses résultats appariés et ses erreurs dans le Job Summary, puis attache `report.md`, `aggregate.json` et les preuves de provenance dans un artifact conservé 30 jours. Les workspaces candidats et les traces modèle brutes ne sont jamais publiés. Le guide `docs/ia/benchmark-bootstrap/user-guide.md` donne la procédure exacte.
 
 ### Première cible de benchmark
 

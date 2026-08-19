@@ -10,11 +10,9 @@
   },
   "task": {
     "id": "submission-start-clean-architecture",
-    "prompt": "Refactor only the API submission-start vertical slice into clean architecture. Preserve the public GraphQL startSubmission contract and its current validation, token, cache, anonymization, persistence, and progress-result behavior. Introduce a domain-side submission persistence port, an application use case, a TypeORM infrastructure adapter, and a GraphQL interface adapter; wire them at the NestJS composition root. Migrate the existing caller and remove the superseded path. Do not refactor unrelated submission features.",
-    "architectureIntent": "Domain and application policy point inward through ports; framework, GraphQL, TypeORM, and persistence details stay in outer adapters. The completed slice must preserve behavior and pass the existing API gate."
+    "prompt": "Refactor only the API submission-start vertical slice into clean architecture. Preserve the public GraphQL startSubmission contract and its current validation, token, cache, anonymization, persistence, and progress-result behavior. Introduce a domain-side submission persistence port, an application use case, a TypeORM infrastructure adapter, and a GraphQL interface adapter; wire them at the NestJS composition root. Migrate the existing caller and remove the superseded path. Do not refactor unrelated submission features."
   },
   "repetitions": 5,
-  "graceContextDigest": "sha256:03feeb417d0019aabdbd925030c87927dfe126a385d83f0195df59d595ed2b13",
   "order": ["baseline", "grace"],
   "model": {
     "id": "openai/gpt-5.6-terra",
@@ -25,8 +23,9 @@
   },
   "agent": {
     "maxSteps": 80,
-    "maxTotalTokens": 200000,
-    "maxToolOutputBytes": 131072
+    "maxCostUsd": 30,
+    "maxTotalTokens": 5000000,
+    "maxToolOutputBytes": 524288
   },
   "commandExecutor": {
     "image": "node@sha256:cd59a61258b82b86c1ff0ead50c8a689f6c3483c5ed21036e11ee741add419eb",
@@ -64,7 +63,10 @@
       "path": "../.bench/evaluator/rule-packs/typescript/ohmyform-v1/dependency-cruiser.config.cjs"
     }
   },
-  "graceContextFile": "../grace-context/ohmyform-v1.md",
+  "grace": {
+    "mcpUrl": "https://grace-mcp.hoppr.tech/mcp/ccb-benchmark-8169",
+    "tokenEnv": "GRACE_MCP_TOKEN"
+  },
   "outputDirectory": "../.bench/results/ohmyform-submission-start-v1",
   "bootstrapSamples": 10000,
   "seed": 20260818

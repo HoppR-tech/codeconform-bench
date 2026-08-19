@@ -15,7 +15,7 @@ function cell(text: string | null): string {
 export function renderCampaignReport(
   campaignId: string,
   manifestDigest: string,
-  graceContextDigest: string,
+  graceMcpUrl: string,
   records: readonly RunRecord[],
   aggregate: CampaignAggregate,
 ): string {
@@ -29,7 +29,7 @@ export function renderCampaignReport(
     `# Benchmark report — ${campaignId}`,
     '',
     `- Manifest: \`${manifestDigest}\``,
-    `- Grace context: \`${graceContextDigest}\``,
+    `- Grace MCP: ${cell(graceMcpUrl)}`,
     '',
     '## Job consumption',
     '',
