@@ -81,13 +81,24 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: node dist/src/cli.js campaigns/ohmyform-v1.json
 
+      - name: Publish token, cost, and result summary
+        if: always()
+        run: |
+          report=.bench/results/ohmyform-submission-start-v1/report.md
+          if [[ -f "$report" ]]; then
+            cat "$report" >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf '## Benchmark report unavailable\n\nThe campaign stopped before producing results.\n' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Upload aggregate and provenance records
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: ohmyform-benchmark-${{ github.run_id }}
+          name: ohmyform-submission-start-v1-${{ github.run_id }}
           path: |
             .bench/results/ohmyform-submission-start-v1/aggregate.json
+            .bench/results/ohmyform-submission-start-v1/report.md
             .bench/results/ohmyform-submission-start-v1/runs/pair-*.json
             !.bench/results/ohmyform-submission-start-v1/runs/*-trace.json
           if-no-files-found: warn

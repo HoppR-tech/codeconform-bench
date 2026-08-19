@@ -126,7 +126,7 @@ npm ci --ignore-scripts
 npm test
 ```
 
-The paid campaigns run through `.github/workflows/benchmarks.yml`, using the repository’s `OPENROUTER_API_KEY` secret. Harness checks and each benchmark appear as separate jobs in the GitHub Actions graph. Every benchmark prepares its ignored target, evaluator, and Linux dependency inputs, then uploads only its aggregate and provenance records—not candidate workspaces or raw model traces. See `docs/ia/benchmark-bootstrap/user-guide.md` for the exact retest sequence.
+The paid campaigns run through `.github/workflows/benchmarks.yml`, using the repository’s `OPENROUTER_API_KEY` secret. Harness checks and each benchmark appear as separate jobs in the GitHub Actions graph. Every benchmark publishes token usage, OpenRouter cost, paired results, and failures in its Job Summary, and attaches `report.md`, `aggregate.json`, and provenance records as a 30-day artifact. Candidate workspaces and raw model traces are never uploaded. See `docs/ia/benchmark-bootstrap/user-guide.md` for the exact retest sequence.
 
 ### First documented benchmark target
 

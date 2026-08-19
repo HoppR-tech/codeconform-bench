@@ -126,7 +126,7 @@ npm ci --ignore-scripts
 npm test
 ```
 
-Les campagnes payantes s’exécutent via `.github/workflows/benchmarks.yml` avec le secret de repository `OPENROUTER_API_KEY`. Les contrôles du harness et chaque benchmark apparaissent comme des jobs séparés dans le graphe GitHub Actions. Chaque benchmark prépare sa cible, son évaluateur et ses dépendances Linux ignorés, puis publie seulement son agrégat et ses preuves de provenance—jamais les workspaces candidats ni les traces modèle brutes. Le guide `docs/ia/benchmark-bootstrap/user-guide.md` donne la procédure exacte.
+Les campagnes payantes s’exécutent via `.github/workflows/benchmarks.yml` avec le secret de repository `OPENROUTER_API_KEY`. Les contrôles du harness et chaque benchmark apparaissent comme des jobs séparés dans le graphe GitHub Actions. Chaque benchmark publie sa consommation de tokens, son coût OpenRouter, ses résultats appariés et ses erreurs dans le Job Summary, puis attache `report.md`, `aggregate.json` et les preuves de provenance dans un artifact conservé 30 jours. Les workspaces candidats et les traces modèle brutes ne sont jamais publiés. Le guide `docs/ia/benchmark-bootstrap/user-guide.md` donne la procédure exacte.
 
 ### Première cible de benchmark
 

@@ -2,6 +2,7 @@ import { lstat, mkdir, readFile, realpath, writeFile } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import type { CampaignAggregate, CampaignManifest, CampaignPorts, CampaignResult, Condition, ConditionSummary, RunRecord } from './contracts.js'
 import { hashTree, sha256 } from './digest.js'
+import { renderCampaignReport } from './report.js'
 
 function median(values: readonly number[]): number | null {
   if (values.length === 0) return null
@@ -181,5 +182,6 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
 
   const aggregate = aggregateRecords(records, manifest.bootstrapSamples, manifest.seed)
   await writeFile(resolve(output, 'aggregate.json'), `${JSON.stringify({ campaignId: manifest.campaignId, manifestDigest, graceContextDigest: manifest.graceContextDigest, ...aggregate }, null, 2)}\n`)
+  await writeFile(resolve(output, 'report.md'), renderCampaignReport(manifest.campaignId, manifestDigest, manifest.graceContextDigest, records, aggregate))
   return { records, aggregate }
 }
