@@ -1,8 +1,8 @@
 import { lstat, mkdir, realpath, writeFile } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
-import { QUALITY_DIMENSIONS, type AgentOutput, type CampaignAggregate, type CampaignManifest, type CampaignPorts, type CampaignResult, type Condition, type ConditionSummary, type QualityDimensions, type RunRecord } from './contracts.js'
+import { QUALITY_DIMENSIONS, type AgentOutput, type CampaignAggregate, type CampaignManifest, type CampaignPorts, type CampaignResult, type Condition, type ConditionSummary, type QualityDimensions, type QualityEvidence, type RunRecord } from './contracts.js'
 import { hashTree, sha256 } from './digest.js'
-import { renderCampaignReport } from './report.js'
+import { renderCampaignReport, renderCampaignSummary } from './report.js'
 
 function mean(values: readonly number[]): number | null {
   return values.length === 0 ? null : values.reduce((total, value) => total + value, 0) / values.length
@@ -192,16 +192,17 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
       const candidateDigest = await hashTree(workspace)
 
       let status: RunRecord['status'] = agent.status === 'infrastructure_error' ? 'infrastructure_error' : 'agent_error'
-      let gateExitCode: number | null = null
+      let functionalGatePassed: boolean | null = null
       let codeQualityScore: number | null = null
       let qualityQualified: boolean | null = null
       let qualityDimensions: QualityDimensions | null = null
       let violations: number | null = null
+      let qualityEvidence: QualityEvidence | null = null
 
       if (agent.status === 'completed') {
         const gate = await ports.runFunctionalGate(workspace)
-        gateExitCode = gate.exitCode
-        if (gate.exitCode !== 0 || gate.signal || gate.timedOut || await hashTree(workspace) !== candidateDigest) {
+        functionalGatePassed = gate.passed
+        if (!gate.passed || await hashTree(workspace) !== candidateDigest) {
           status = 'functional_failed'
         } else {
           const evaluation = await ports.evaluate(workspace, pairId, condition)
@@ -213,6 +214,7 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
             qualityQualified = evaluation.qualityQualified ?? null
             qualityDimensions = evaluation.dimensions ?? null
             violations = evaluation.violations ?? null
+            qualityEvidence = evaluation.evidence
           }
         }
       }
@@ -231,11 +233,12 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
         promptTokens: agent.promptTokens,
         completionTokens: agent.completionTokens,
         cost: agent.cost,
-        functionalGateExitCode: gateExitCode,
+        functionalGatePassed,
         codeQualityScore,
         qualityQualified,
         qualityDimensions,
         violations,
+        qualityEvidence,
         durationMs: Date.now() - startedAt,
       }
       records.push(record)
@@ -246,5 +249,6 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
   const aggregate = aggregateRecords(records, manifest.bootstrapSamples, manifest.seed)
   await writeFile(resolve(output, 'aggregate.json'), `${JSON.stringify({ campaignId: manifest.campaignId, manifestDigest, ...aggregate }, null, 2)}\n`)
   await writeFile(resolve(output, 'report.md'), renderCampaignReport(manifest.campaignId, manifestDigest, manifest.grace.mcpUrl, records, aggregate))
+  await writeFile(resolve(output, 'summary.md'), renderCampaignSummary(manifest.campaignId, manifestDigest, records, aggregate))
   return { records, aggregate }
 }

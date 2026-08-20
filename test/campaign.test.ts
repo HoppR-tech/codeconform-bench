@@ -7,6 +7,7 @@ import { test } from 'node:test'
 import { promisify } from 'node:util'
 import { aggregateRecords, runCampaign } from '../src/campaign.js'
 import type { CampaignManifest, RunRecord } from '../src/contracts.js'
+import { buildQualityEvidence } from './evidence-fixture.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -26,7 +27,7 @@ function outcomeRecord(pairId: string, condition: 'baseline' | 'grace', status: 
     promptTokens: 100,
     completionTokens: 10,
     cost: 0.01,
-    functionalGateExitCode: scored || status === 'evaluator_error' ? 0 : null,
+    functionalGatePassed: scored || status === 'evaluator_error' ? true : status === 'functional_failed' ? false : null,
     durationMs: 100,
     codeQualityScore: scored ? qualityScore : null,
     qualityQualified: scored ? qualityScore >= 0.7 : null,
@@ -38,6 +39,7 @@ function outcomeRecord(pairId: string, condition: 'baseline' | 'grace', status: 
       robustness: qualityScore,
     } : null,
     violations: scored ? 0 : null,
+    qualityEvidence: scored ? buildQualityEvidence(qualityScore) : null,
   }
 }
 
@@ -111,23 +113,26 @@ test('runs paired conditions, gates before scoring, and preserves provenance', a
     },
     runFunctionalGate: async (workspace) => {
       if (workspace.endsWith('pair-02-baseline')) await writeFile(resolve(workspace, 'candidate.txt'), 'gate mutation\n')
-      return { exitCode: 0, signal: null, stdout: '', stderr: '', timedOut: false }
+      return { passed: true }
     },
     evaluate: async (workspace, pairId, condition) => {
       evaluated.push(`${pairId}-${condition}`)
       if (pairId === 'pair-02' && condition === 'grace') await writeFile(resolve(workspace, 'candidate.txt'), 'evaluator mutation\n')
+      const qualityScore = condition === 'grace' ? 0.8 : 0.2
+      const violations = condition === 'grace' ? 0 : 1
       return {
-        status: 'passing',
-        violations: condition === 'grace' ? 0 : 1,
-        qualityScore: condition === 'grace' ? 0.8 : 0.2,
+        status: condition === 'grace' ? 'passing' : 'failing',
+        violations,
+        qualityScore,
         qualityQualified: condition === 'grace',
         dimensions: {
-          architecture: condition === 'grace' ? 0.8 : 0.2,
-          maintainability: condition === 'grace' ? 0.8 : 0.2,
-          clarity: condition === 'grace' ? 0.8 : 0.2,
-          tests: condition === 'grace' ? 0.8 : 0.2,
-          robustness: condition === 'grace' ? 0.8 : 0.2,
+          architecture: qualityScore,
+          maintainability: qualityScore,
+          clarity: qualityScore,
+          tests: qualityScore,
+          robustness: qualityScore,
         },
+        evidence: buildQualityEvidence(qualityScore, violations),
       }
     },
   })
@@ -146,6 +151,16 @@ test('runs paired conditions, gates before scoring, and preserves provenance', a
   assert.equal(result.records.find((record) => record.pairId === 'pair-02' && record.condition === 'grace')?.status, 'evaluator_error')
   assert.deepEqual(evaluated, ['pair-01-baseline', 'pair-01-grace', 'pair-02-grace'])
   assert.match(result.records[0]?.candidateDigest ?? '', /^sha256:[0-9a-f]{64}$/)
+  const persistedRun = JSON.parse(await readFile(resolve(output, 'runs/pair-01-baseline.json'), 'utf8')) as RunRecord
+  assert.equal(persistedRun.qualityEvidence?.schemaVersion, 1)
+  assert.equal(persistedRun.qualityEvidence?.dimensions[0]?.checks[0]?.id, 'architecture.fixture-1')
+  assert.equal(persistedRun.qualityEvidence?.sources[0]?.path, 'src/fixture.ts')
+  assert.match(persistedRun.qualityEvidence?.sources[0]?.digest ?? '', /^sha256:[0-9a-f]{64}$/)
+  const failedRun = JSON.parse(await readFile(resolve(output, 'runs/pair-02-baseline.json'), 'utf8')) as RunRecord
+  assert.equal(failedRun.qualityEvidence, null)
+  const summary = await readFile(resolve(output, 'summary.md'), 'utf8')
+  assert.match(summary, /Full check\/source\/graph report: `report\.md`/)
+  assert.match(summary, /runs\/pair-01-baseline\.json/)
 
   const aggregate = JSON.parse(await readFile(resolve(output, 'aggregate.json'), 'utf8')) as Record<string, unknown>
   assert.equal(aggregate.campaignId, 'fixture-v2')

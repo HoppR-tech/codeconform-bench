@@ -73,7 +73,7 @@ jobs:
           git clone --filter=blob:none https://github.com/HoppR-tech/ccb-ohmyform.git .bench/targets/ccb-ohmyform
           git -C .bench/targets/ccb-ohmyform checkout --detach 0f602c646447cb8efc0ad346a2bf4869c30d2360
           git clone --filter=blob:none --branch benchmark/ohmyform-v2 https://github.com/HoppR-tech/ccb-evaluator.git .bench/evaluator
-          git -C .bench/evaluator checkout --detach 67a93b1d5bf55386ac3f561bd84854d04b095440
+          git -C .bench/evaluator checkout --detach 23be795664d48ef6c0f63372e26f008f9aa2dbe6
           npm ci --ignore-scripts --prefix .bench/evaluator
           mkdir -p .bench/dependencies/ohmyform-v1-api
           cp .bench/targets/ccb-ohmyform/api/package.json .bench/targets/ccb-ohmyform/api/yarn.lock .bench/dependencies/ohmyform-v1-api/
@@ -102,20 +102,22 @@ jobs:
         env:
           OUTPUT: ${{ matrix.output }}
         run: |
-          report=".bench/results/$OUTPUT/report.md"
-          if [[ -f "$report" ]]; then
-            tee -a "$GITHUB_STEP_SUMMARY" < "$report"
+          summary=".bench/results/$OUTPUT/summary.md"
+          if [[ -f "$summary" ]]; then
+            cat "$summary" >> "$GITHUB_STEP_SUMMARY"
           else
-            printf '## Benchmark report unavailable\n\nThe campaign stopped before producing results.\n' >> "$GITHUB_STEP_SUMMARY"
+            printf '## Benchmark summary unavailable\n\nThe campaign stopped before producing results.\n' >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - name: Upload aggregate and provenance records
+      - name: Upload scoring evidence and provenance records
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ matrix.output }}-${{ github.run_id }}
           path: |
+            .bench/results/${{ matrix.output }}/campaign-manifest.json
             .bench/results/${{ matrix.output }}/aggregate.json
+            .bench/results/${{ matrix.output }}/summary.md
             .bench/results/${{ matrix.output }}/report.md
             .bench/results/${{ matrix.output }}/runs/pair-*.json
             !.bench/results/${{ matrix.output }}/runs/*-trace.json

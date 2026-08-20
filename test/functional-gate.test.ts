@@ -28,6 +28,6 @@ function gate(value: unknown): FunctionalGate {
 }
 
 test('functional gate keeps assertions in the host process', async () => {
-  assert.equal((await gate(expected).run('/candidate')).exitCode, 0)
-  assert.equal((await gate({ ...expected, regular: { ...expected.regular, tokenHash: 'wrong' } }).run('/candidate')).exitCode, 1)
+  assert.equal((await gate(expected).run('/candidate')).passed, true)
+  assert.equal((await gate({ ...expected, regular: { ...expected.regular, tokenHash: 'wrong' } }).run('/candidate')).passed, false)
 })

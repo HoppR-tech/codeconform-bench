@@ -10,13 +10,17 @@ function object(value: unknown, name: string): Record<string, unknown> {
   return value as Record<string, unknown>
 }
 
-function string(value: unknown, name: string): string {
-  if (typeof value !== 'string' || value.length === 0) throw new Error(`${name} must be a non-empty string`)
+function string(value: unknown, name: string, maximum = Number.MAX_SAFE_INTEGER): string {
+  if (typeof value !== 'string' || value.length === 0 || value.length > maximum) {
+    throw new Error(`${name} must be a non-empty string of at most ${maximum} characters`)
+  }
   return value
 }
 
-function integer(value: unknown, name: string, minimum: number): number {
-  if (!Number.isInteger(value) || (value as number) < minimum) throw new Error(`${name} must be an integer >= ${minimum}`)
+function integer(value: unknown, name: string, minimum: number, maximum = Number.MAX_SAFE_INTEGER): number {
+  if (!Number.isInteger(value) || (value as number) < minimum || (value as number) > maximum) {
+    throw new Error(`${name} must be an integer between ${minimum} and ${maximum}`)
+  }
   return value as number
 }
 
@@ -116,7 +120,7 @@ export function parseManifest(value: unknown, baseDirectory = process.cwd()): Ca
 
   return {
     schemaVersion: 2,
-    campaignId: string(root.campaignId, 'campaignId'),
+    campaignId: string(root.campaignId, 'campaignId', 120),
     target: {
       checkout,
       repository: string(target.repository, 'target.repository'),
@@ -128,7 +132,7 @@ export function parseManifest(value: unknown, baseDirectory = process.cwd()): Ca
       id: string(task.id, 'task.id'),
       prompt: string(task.prompt, 'task.prompt'),
     },
-    repetitions: integer(root.repetitions, 'repetitions', 3),
+    repetitions: integer(root.repetitions, 'repetitions', 3, 3),
     order,
     model: {
       id: string(model.id, 'model.id'),

@@ -43,4 +43,7 @@ test('rejects mutable execution inputs', () => {
   for (const maxCostUsd of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
     assert.throws(() => parseManifest({ ...valid, agent: { ...valid.agent, maxCostUsd } }), /agent\.maxCostUsd/)
   }
+  assert.equal(parseManifest({ ...valid, repetitions: 3 }).repetitions, 3)
+  assert.throws(() => parseManifest({ ...valid, repetitions: 4 }), /repetitions must be an integer between 3 and 3/)
+  assert.throws(() => parseManifest({ ...valid, campaignId: 'x'.repeat(121) }), /campaignId must be a non-empty string of at most 120 characters/)
 })

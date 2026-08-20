@@ -27,6 +27,7 @@ CCB publie :
 - **Delta Grace** — l’écart apparié entre Grace et baseline pour le même modèle, la même tâche et la même tentative.
 - **Efficience** — tokens, coût, latence et gain de qualité pour 1 000 tokens supplémentaires, publiés séparément de la capacité.
 - **Fiabilité** — les échecs candidats restent des résultats scorés ; les erreurs d’infrastructure fournisseur, harness ou évaluateur sont exclues et publiées explicitement.
+- **Preuves de score brutes** — points et seuils par contrôle versionné, extraits `fichier:ligne` relatifs au candidat, métriques des fichiers évalués, chemins de dépendances et structure qui justifient chaque score.
 
 La tranche OhMyForm actuelle reste une étude de cas sur une seule tâche. Généraliser entre modèles demande une suite versionnée plus large avec un poids égal par tâche.
 
@@ -53,7 +54,7 @@ Le protocole est figé et publié avant les runs :
 3. Le modèle reçoit l’intention fonctionnelle et de qualité du code, jamais les assertions exécutables.
 4. Chaque condition est répétée trois fois et agrégée comme tentatives pass@1.
 5. L’évaluateur s’exécute hors du workspace de l’agent ; ses règles ne sont pas accessibles au modèle.
-6. Les résultats publient moyennes, intervalles appariés, scores par dimension, données brutes et versions exactes des modèles.
+6. Les résultats publient moyennes, intervalles appariés, scores par dimension, preuves brutes versionnées par contrôle, citations source, structure de dépendances, données brutes et versions exactes des modèles.
 
 ## Architecture implémentée du benchmark
 
@@ -75,7 +76,7 @@ flowchart LR
     X --> F[Gate fonctionnelle]
     F -->|vert| E[Évaluateur séparé]
     F -->|rouge| R[Résultat scoré à qualité nulle]
-    E --> R[Agrégat et provenance]
+    E --> R[Agrégat, preuves et provenance]
 ```
 
 L’ordre baseline/Grace alterne entre les paires. Les échecs fonctionnels ou de l’agent valent zéro ; les erreurs d’infrastructure fournisseur, harness ou évaluateur sont exclues des dénominateurs concernés et publiées explicitement. Les deltas Grace utilisent toutes les paires valides des deux côtés.
@@ -106,6 +107,10 @@ L’évaluateur TypeScript publie cinq dimensions normalisées et pondérées da
 
 Un candidat n’est qualifié que si son score pondéré atteint 70 % et si chaque dimension atteint son minimum publié. Les adaptateurs d’autres langages peuvent employer leurs outils natifs, mais doivent conserver les mêmes dimensions et le même contrat de score.
 
+Chaque tentative scorée porte le schéma de preuve v1. Une personne peut recalculer chaque contrôle, dimension, score global pondéré, décision de qualification et compteur de violations à partir d’identifiants stables et des points obtenus/maximaux. Les diagnostics inline sont relatifs au candidat, numérotés par ligne, expurgés et bornés pour l’affichage. Le JSON canonique de chaque run conserve tous les fichiers source/test évalués sous forme de contenu scoré complet et expurgé avec leur SHA-256 d’origine, chaque chemin de dépendance déterminant pour le score sans troncature de nœuds, et le graphe normalisé complet. Le rapport complet affiche une vue Mermaid bornée et renvoie vers cet artifact canonique.
+
+Le schéma de preuve v1 accepte cinq dimensions non vides et au plus 35 contrôles uniques par run. Ce budget correspond à l’évaluateur TypeScript officiel et garantit que les six tentatives acceptées peuvent afficher chaque ligne de contrôle dans le Job Summary borné ; une sortie évaluateur hors budget est rejetée avant la persistance de la campagne.
+
 La matrice prévue couvre Java/Kotlin, C#/.NET, TypeScript, Python et Go.
 
 ## Reproductibilité et anti-contamination
@@ -116,20 +121,20 @@ CCB traite l’isolation de l’évaluation comme une propriété fondamentale :
 - le modèle ne reçoit ni shell, ni outil web/search/fetch, ni chemin d’évaluateur, ni credential ;
 - les commandes candidat s’exécutent dans Docker avec `--network none`, un workspace et des dépendances vérifiées par digest en lecture seule, des ressources bornées, un seul appel de validation et aucun socket Docker ;
 - le commit/tree cible et le digest de l’export matérialisé, l’endpoint MCP Grace, les digests des montages de dépendances/probe, l’image du conteneur, le runner d’évaluation, le rule pack, la politique fournisseur, les prompts, les artefacts candidats et les traces sont épinglés ou hashés ;
-- l’évaluateur ne renvoie que le statut, les compteurs et les scores agrégés ; aucun diagnostic détaillé n’est envoyé au modèle.
+- l’évaluateur émet les scores agrégés et une preuve canonique complète seulement après la fin de l’agent ; ni les règles ni les preuves ne sont renvoyées au modèle, la sortie brute de l’analyseur contenant des détails d’hôte ou d’environnement est éliminée, les credentials réalistes sont expurgés et un dépassement de taille des preuves produit `evaluator_error` plutôt qu’un score non justifié.
 
 Le benchmark vérifie un comportement observable, pas la résistance à un programme volontairement conscient du test. L’agent ne reçoit jamais le probe final ni ses assertions ; un code qui détecte intentionnellement l’environnement de validation pour le traiter à part sort du modèle de menace expérimental.
 
 ## État et vérification
 
-La première tranche v2 est `campaigns/ohmyform-v2.json` : trois tentatives pass@1 appariées sur la tâche OhMyForm submission-start épinglée. Le harness public, le parseur strict de manifest v2, la boucle d’outils OpenRouter, l’exécuteur Docker, la gate fonctionnelle, l’évaluateur multidimensionnel, l’agrégation appariée qui tient compte des échecs et les preuves de provenance sont implémentés.
+La première tranche v2 est `campaigns/ohmyform-v2.json` : trois tentatives pass@1 appariées sur la tâche OhMyForm submission-start épinglée. Le harness public, le parseur strict de manifest v2, la boucle d’outils OpenRouter, l’exécuteur Docker, la gate fonctionnelle, l’évaluateur multidimensionnel, le contrat de preuves de score réconciliées, l’agrégation appariée qui tient compte des échecs et les preuves de provenance sont implémentés.
 
 ```sh
 npm ci --ignore-scripts
 npm test
 ```
 
-Les agents de code locaux lisent `.mcp.json` et effectuent l’OAuth Grace lors de leur première connexion. Les campagnes payantes s’exécutent via `.github/workflows/benchmarks.yml` ; GitHub Actions étant non interactif, elles utilisent à la place les secrets de repository `OPENROUTER_API_KEY` et `GRACE_MCP_TOKEN`. Seuls les runs Grace se connectent au MCP du SaaS Grace configuré ; les runs baseline ne reçoivent ni ses instructions ni ses outils. Les contrôles du harness et chaque benchmark apparaissent comme des jobs séparés dans le graphe GitHub Actions. Chaque benchmark publie sa consommation de tokens, son coût OpenRouter, ses résultats appariés et ses erreurs dans le Job Summary, puis attache `report.md`, `aggregate.json` et les preuves de provenance dans un artifact conservé 30 jours. Les workspaces candidats et les traces modèle brutes ne sont jamais publiés. Le guide `docs/ia/benchmark-bootstrap/user-guide.md` donne la procédure exacte.
+Les agents de code locaux lisent `.mcp.json` et effectuent l’OAuth Grace lors de leur première connexion. Les campagnes payantes s’exécutent via `.github/workflows/benchmarks.yml` ; GitHub Actions étant non interactif, elles utilisent à la place les secrets de repository `OPENROUTER_API_KEY` et `GRACE_MCP_TOKEN`. Seuls les runs Grace se connectent au MCP du SaaS Grace configuré ; les runs baseline ne reçoivent ni ses instructions ni ses outils. Les contrôles du harness et chaque benchmark apparaissent comme des jobs séparés dans le graphe GitHub Actions. Les campagnes sont fixées à trois répétitions appariées. Chaque benchmark publie un Job Summary déterministe inférieur à 128 Kio, avec réconciliation globale et par dimension, chaque ligne de contrôle brute, la première preuve source/chemin, des projections Mermaid aux totaux véridiques et les pointeurs d’artifact canoniques. L’artifact conservé 30 jours attache `summary.md`, le `report.md` complet, `aggregate.json`, `campaign-manifest.json` et les preuves canoniques source/graphe de chaque run. Les workspaces candidats et les traces modèle brutes ne sont jamais publiés. Le guide `docs/ia/benchmark-bootstrap/user-guide.md` donne la procédure exacte.
 
 ### Première cible de benchmark
 

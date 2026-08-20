@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import type { CampaignManifest, CommandResult, ReadOnlyMount } from './contracts.js'
+import type { CampaignManifest, CommandResult, FunctionalGateResult, ReadOnlyMount } from './contracts.js'
 
 interface GateExecutor {
   runCommand(workspace: string, command: readonly string[], mounts: readonly ReadOnlyMount[]): Promise<CommandResult>
@@ -26,9 +26,9 @@ export class FunctionalGate {
     private readonly config: CampaignManifest['functionalGate'],
   ) {}
 
-  async run(workspace: string): Promise<CommandResult> {
+  async run(workspace: string): Promise<FunctionalGateResult> {
     const result = await this.executor.runCommand(workspace, this.config.command, this.config.readOnlyMounts)
-    if (result.exitCode !== 0 || result.signal || result.timedOut) return result
+    if (result.exitCode !== 0 || result.signal || result.timedOut) return { passed: false }
 
     try {
       const lines = result.stdout.split('\n')
@@ -40,14 +40,9 @@ export class FunctionalGate {
       if (!encoded) throw new Error('functional probe omitted nonce-bound result')
       const value: unknown = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'))
       assert.deepEqual(value, expected)
-      return { ...result, stdout: '' }
-    } catch (error) {
-      return {
-        ...result,
-        exitCode: 1,
-        stdout: '',
-        stderr: `${result.stderr}${result.stderr ? '\n' : ''}functional gate failed: ${error instanceof Error ? error.message : 'invalid result'}`,
-      }
+      return { passed: true }
+    } catch {
+      return { passed: false }
     }
   }
 }

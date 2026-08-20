@@ -4,6 +4,112 @@ export const QUALITY_DIMENSIONS = ['architecture', 'maintainability', 'clarity',
 export type QualityDimension = typeof QUALITY_DIMENSIONS[number]
 export type QualityDimensions = Record<QualityDimension, number>
 
+export type EvidenceOperator = 'eq' | 'gte' | 'lte' | 'exists' | 'not_exists'
+export type EvidenceScalar = string | number | boolean
+
+export interface EvidenceLocation {
+  path: string
+  line: number
+  endLine: number
+  snippet: string
+  message?: string
+}
+
+export interface EvidencePath {
+  nodes: string[]
+  totalNodes: number
+  truncated: boolean
+}
+
+export interface QualityCheckEvidence {
+  id: string
+  dimension: QualityDimension
+  title: string
+  status: 'passed' | 'failed'
+  mandatory: boolean
+  earned: number
+  max: number
+  violations: number
+  observed: EvidenceScalar
+  operator: EvidenceOperator
+  threshold: EvidenceScalar
+  expected: string
+  locations: EvidenceLocation[]
+  locationCount: number
+  locationsTruncated: boolean
+  paths: EvidencePath[]
+  pathCount: number
+  pathsTruncated: boolean
+}
+
+export interface QualityDimensionEvidence {
+  dimension: QualityDimension
+  score: number
+  earned: number
+  max: number
+  weight: number
+  minimum: number
+  qualified: boolean
+  checks: QualityCheckEvidence[]
+}
+
+export interface QualityInventoryFile {
+  path: string
+  kind: 'source' | 'test'
+  lines: number
+  functions: number
+  maxFunctionLines: number
+  maxParameters: number
+  maxComplexity: number
+  anyTypes: number
+  suppressions: number
+  nonNullAssertions: number
+  testCases: number
+  testCasesWithAssertions: number
+  assertions: number
+  focusedOrSkippedTests: number
+  emptyCatches: number
+  dangerousCalls: number
+  dangerousImports: number
+}
+
+export interface QualityEvidenceSource {
+  path: string
+  digest: string
+  lineCount: number
+  redactionCount: number
+  content: string
+}
+
+export interface QualityEvidence {
+  schemaVersion: 1
+  overall: {
+    score: number
+    earned: number
+    max: number
+    qualifiedThreshold: number
+    qualified: boolean
+  }
+  dimensions: QualityDimensionEvidence[]
+  inventory: {
+    sourceFileCount: number
+    testFileCount: number
+    fileCount: number
+    files: QualityInventoryFile[]
+    omittedUnsafePathCount: number
+    filesTruncated: boolean
+  }
+  sources: QualityEvidenceSource[]
+  structure: {
+    nodes: string[]
+    nodeCount: number
+    nodesTruncated: boolean
+    edges: { from: string, to: string }[]
+    edgeCount: number
+    edgesTruncated: boolean
+  }
+}
+
 export interface ReadOnlyMount {
   source: string
   target: string
@@ -97,13 +203,20 @@ export interface CommandResult {
   timedOut: boolean
 }
 
-export interface EvaluatorResult {
-  status: 'passing' | 'failing' | 'evaluator_error'
-  violations?: number
-  qualityScore?: number
-  qualityQualified?: boolean
-  dimensions?: QualityDimensions
+export interface FunctionalGateResult {
+  passed: boolean
 }
+
+export type EvaluatorResult =
+  | {
+    status: 'passing' | 'failing'
+    violations: number
+    qualityScore: number
+    qualityQualified: boolean
+    dimensions: QualityDimensions
+    evidence: QualityEvidence
+  }
+  | { status: 'evaluator_error' }
 
 export interface RunRecord {
   pairId: string
@@ -119,19 +232,20 @@ export interface RunRecord {
   promptTokens: number
   completionTokens: number
   cost: number | null
-  functionalGateExitCode: number | null
+  functionalGatePassed: boolean | null
   durationMs: number
   codeQualityScore: number | null
   qualityQualified: boolean | null
   qualityDimensions: QualityDimensions | null
   violations: number | null
+  qualityEvidence: QualityEvidence | null
 }
 
 export interface CampaignPorts {
   prepareWorkspace(workspace: string): Promise<void>
   verifyTarget(): Promise<void>
   runAgent(input: AgentInput): Promise<AgentOutput>
-  runFunctionalGate(workspace: string): Promise<CommandResult>
+  runFunctionalGate(workspace: string): Promise<FunctionalGateResult>
   evaluate(workspace: string, pairId: string, condition: Condition): Promise<EvaluatorResult>
 }
 

@@ -67,7 +67,7 @@
   "evaluator": {
     "runner": {
       "path": "../.bench/evaluator/runners/typescript/evaluate.mjs",
-      "digest": "sha256:625d5ccbeaf4af9a2729ca43e10dfa93fb09d7f85adb376d8ae51b95cab9e27a"
+      "digest": "sha256:d72aff9121361ea3d9fff102ab8a64c5bb86a54c5526a429894205efb969ae65"
     },
     "command": [
       "node",
@@ -81,8 +81,8 @@
     ],
     "rulePack": {
       "id": "ohmyform-v2",
-      "version": "2",
-      "digest": "sha256:9d6a905104728945a6d57900347db105c8a27f8205cdf78dca5774540648e5ff",
+      "version": "3",
+      "digest": "sha256:aea4997d5b24388a7866c4dc1ea6a414cef7f533057ce48f1a879b81a8a1cb3d",
       "path": "../.bench/evaluator/rule-packs/typescript/ohmyform-v2/dependency-cruiser.config.cjs"
     }
   },
