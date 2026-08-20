@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { ConnectionError, RequestTimeoutError } from '@openrouter/sdk/models/errors'
 import type { CandidateTools } from '../src/candidate-tools.js'
 import type { GraceTools } from '../src/grace-mcp.js'
 import { OpenRouterAgent } from '../src/openrouter-agent.js'
@@ -43,6 +44,195 @@ test('stops before feeding oversized tool output back to the model', async () =>
   assert.ok(requestedMaxTokens > 0 && requestedMaxTokens < 10_000)
   assert.deepEqual(requestMessages[1], { role: 'user', content: 'Refactor.' })
   assert.match(JSON.stringify(result.trace), /agent tool-output budget exceeded/)
+})
+
+test('retries transient responses and honors Retry-After within one global budget', async () => {
+  const waits: number[] = []
+  let now = 0
+  const agent = new OpenRouterAgent('fixture-key', {
+    id: 'fixture-model',
+    providerOrder: ['fixture-provider'],
+    allowFallbacks: false,
+    maxTokens: 10_000,
+  }, { maxSteps: 1, maxCostUsd: 30, maxTotalTokens: 10_000, maxToolOutputBytes: 1_024 }, async (milliseconds) => {
+    waits.push(milliseconds)
+    now += milliseconds
+  }, () => now)
+  let requests = 0
+  let requestOptions: unknown
+  Object.defineProperty(agent, 'client', { value: {
+    chat: {
+      send: async (_request: unknown, options: unknown) => {
+        requests += 1
+        requestOptions = options
+        if (requests === 1) throw new ConnectionError('connection failed')
+        if (requests === 2) {
+          throw Object.assign(new Error('provider unavailable'), { statusCode: 503, headers: new Headers() })
+        }
+        if (requests === 3) {
+          throw Object.assign(new Error('rate limited'), { statusCode: 429, headers: new Headers({ 'retry-after': '2' }) })
+        }
+        return {
+          model: 'fixture-model',
+          choices: [{ message: { role: 'assistant', content: 'done' } }],
+          usage: { promptTokens: 10, completionTokens: 5, cost: 0.01 },
+        }
+      },
+    },
+  } })
+
+  const result = await agent.run({
+    condition: 'baseline',
+    pairId: 'pair-01',
+    workspace: '/tmp/candidate',
+    task: { id: 'fixture', prompt: 'Refactor.' },
+  }, { execute: async () => '' } as unknown as CandidateTools)
+
+  assert.equal(result.status, 'completed')
+  assert.equal(requests, 4)
+  assert.deepEqual(waits, [1_000, 2_000, 2_000])
+  assert.deepEqual(requestOptions, { retries: { strategy: 'none' }, timeoutMs: 115_000 })
+})
+
+test('does not retry when Retry-After consumes its entire wait budget', async () => {
+  const waits: number[] = []
+  const agent = new OpenRouterAgent('fixture-key', {
+    id: 'fixture-model',
+    providerOrder: ['fixture-provider'],
+    allowFallbacks: false,
+    maxTokens: 10_000,
+  }, { maxSteps: 1, maxCostUsd: 30, maxTotalTokens: 10_000, maxToolOutputBytes: 1_024 }, async (milliseconds) => {
+    waits.push(milliseconds)
+  })
+  let requests = 0
+  Object.defineProperty(agent, 'client', { value: {
+    chat: {
+      send: async () => {
+        requests += 1
+        throw Object.assign(new Error('rate limited'), { statusCode: 429, headers: new Headers({ 'retry-after': '120' }) })
+      },
+    },
+  } })
+
+  const result = await agent.run({
+    condition: 'baseline',
+    pairId: 'pair-01',
+    workspace: '/tmp/candidate',
+    task: { id: 'fixture', prompt: 'Refactor.' },
+  }, { execute: async () => '' } as unknown as CandidateTools)
+
+  assert.equal(result.status, 'agent_error')
+  assert.equal(result.error, 'rate limited')
+  assert.equal(requests, 1)
+  assert.deepEqual(waits, [])
+})
+
+test('uses the rate-limit fallback for an empty Retry-After header', async () => {
+  const waits: number[] = []
+  let now = 0
+  const agent = new OpenRouterAgent('fixture-key', {
+    id: 'fixture-model',
+    providerOrder: ['fixture-provider'],
+    allowFallbacks: false,
+    maxTokens: 10_000,
+  }, { maxSteps: 1, maxCostUsd: 30, maxTotalTokens: 10_000, maxToolOutputBytes: 1_024 }, async (milliseconds) => {
+    waits.push(milliseconds)
+    now += milliseconds
+  }, () => now)
+  let requests = 0
+  Object.defineProperty(agent, 'client', { value: {
+    chat: {
+      send: async () => {
+        requests += 1
+        if (requests === 1) {
+          throw Object.assign(new Error('rate limited'), { statusCode: 429, headers: new Headers({ 'retry-after': ' ' }) })
+        }
+        return {
+          model: 'fixture-model',
+          choices: [{ message: { role: 'assistant', content: 'done' } }],
+          usage: { promptTokens: 10, completionTokens: 5, cost: 0.01 },
+        }
+      },
+    },
+  } })
+
+  const result = await agent.run({
+    condition: 'baseline',
+    pairId: 'pair-01',
+    workspace: '/tmp/candidate',
+    task: { id: 'fixture', prompt: 'Refactor.' },
+  }, { execute: async () => '' } as unknown as CandidateTools)
+
+  assert.equal(result.status, 'completed')
+  assert.equal(requests, 2)
+  assert.deepEqual(waits, [60_000])
+})
+
+test('does not retry when a timer resumes after the retry deadline', async () => {
+  let now = 0
+  const agent = new OpenRouterAgent('fixture-key', {
+    id: 'fixture-model',
+    providerOrder: ['fixture-provider'],
+    allowFallbacks: false,
+    maxTokens: 10_000,
+  }, { maxSteps: 1, maxCostUsd: 30, maxTotalTokens: 10_000, maxToolOutputBytes: 1_024 }, async () => {
+    now = 120_001
+  }, () => now)
+  let requests = 0
+  Object.defineProperty(agent, 'client', { value: {
+    chat: {
+      send: async () => {
+        requests += 1
+        throw Object.assign(new Error('provider unavailable'), { statusCode: 503, headers: new Headers() })
+      },
+    },
+  } })
+
+  const result = await agent.run({
+    condition: 'baseline',
+    pairId: 'pair-01',
+    workspace: '/tmp/candidate',
+    task: { id: 'fixture', prompt: 'Refactor.' },
+  }, { execute: async () => '' } as unknown as CandidateTools)
+
+  assert.equal(result.status, 'agent_error')
+  assert.equal(result.error, 'provider unavailable')
+  assert.equal(requests, 1)
+})
+
+test('does not retry after a request consumes the retry window', async () => {
+  const waits: number[] = []
+  let now = 0
+  const agent = new OpenRouterAgent('fixture-key', {
+    id: 'fixture-model',
+    providerOrder: ['fixture-provider'],
+    allowFallbacks: false,
+    maxTokens: 10_000,
+  }, { maxSteps: 1, maxCostUsd: 30, maxTotalTokens: 10_000, maxToolOutputBytes: 1_024 }, async (milliseconds) => {
+    waits.push(milliseconds)
+  }, () => now)
+  let requests = 0
+  Object.defineProperty(agent, 'client', { value: {
+    chat: {
+      send: async () => {
+        requests += 1
+        now = 120_001
+        throw new RequestTimeoutError('request timed out')
+      },
+    },
+  } })
+
+  const result = await agent.run({
+    condition: 'baseline',
+    pairId: 'pair-01',
+    workspace: '/tmp/candidate',
+    task: { id: 'fixture', prompt: 'Refactor.' },
+  }, { execute: async () => '' } as unknown as CandidateTools)
+
+  assert.equal(result.status, 'agent_error')
+  assert.equal(result.error, 'request timed out')
+  assert.equal(requests, 1)
+  assert.deepEqual(waits, [])
 })
 
 test('allows the ceiling and stops after cumulative response cost exceeds it', async () => {
@@ -140,6 +330,46 @@ test('fails closed when OpenRouter omits response cost', async () => {
 
   assert.equal(result.status, 'agent_error')
   assert.match(result.error ?? '', /invalid token or cost usage/)
+})
+
+test('reports exhaustion of the agent step budget', async () => {
+  const agent = new OpenRouterAgent('fixture-key', {
+    id: 'fixture-model',
+    providerOrder: ['fixture-provider'],
+    allowFallbacks: false,
+    maxTokens: 10_000,
+  }, { maxSteps: 2, maxCostUsd: 30, maxTotalTokens: 10_000, maxToolOutputBytes: 1_024 })
+  let requests = 0
+  Object.defineProperty(agent, 'client', { value: {
+    chat: {
+      send: async () => {
+        requests += 1
+        return {
+          model: 'fixture-model',
+          choices: [{
+            message: {
+              role: 'assistant',
+              content: null,
+              toolCalls: [{ id: `call-${requests}`, type: 'function', function: { name: 'read_file', arguments: '{"path":"fixture"}' } }],
+            },
+          }],
+          usage: { promptTokens: 10, completionTokens: 5, cost: 0.01 },
+        }
+      },
+    },
+  } })
+
+  const result = await agent.run({
+    condition: 'baseline',
+    pairId: 'pair-01',
+    workspace: '/tmp/candidate',
+    task: { id: 'fixture', prompt: 'Refactor.' },
+  }, { execute: async () => '' } as unknown as CandidateTools)
+
+  assert.equal(requests, 2)
+  assert.equal(result.status, 'agent_error')
+  assert.equal(result.error, 'agent step budget exhausted')
+  assert.match(JSON.stringify(result.trace), /agent step budget exhausted/)
 })
 
 

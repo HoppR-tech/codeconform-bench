@@ -107,7 +107,7 @@ jobs:
         run: |
           report=".bench/results/$OUTPUT/report.md"
           if [[ -f "$report" ]]; then
-            cat "$report" >> "$GITHUB_STEP_SUMMARY"
+            tee -a "$GITHUB_STEP_SUMMARY" < "$report"
           else
             printf '## Benchmark report unavailable\n\nThe campaign stopped before producing results.\n' >> "$GITHUB_STEP_SUMMARY"
           fi

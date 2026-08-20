@@ -1,4 +1,5 @@
 import { OpenRouter } from '@openrouter/sdk'
+import { ConnectionError, RequestTimeoutError } from '@openrouter/sdk/models/errors'
 import type { ChatMessages } from '@openrouter/sdk/models'
 import { candidateToolDefinitions, CandidateTools } from './candidate-tools.js'
 import type { GraceTools } from './grace-mcp.js'
@@ -9,6 +10,43 @@ Use only the declared tools. Do not request web access, external repositories, h
 Inspect before writing, make the smallest complete change, run the approved validation command, then finish with a concise summary.`
 const PROMPT_TOKEN_OVERHEAD = 1_024
 const COST_SCALE = 1_000_000_000_000
+const MAX_REQUEST_RETRIES = 3
+const MAX_RETRY_ELAPSED_MS = 120_000
+const SDK_REQUEST_OPTIONS = { retries: { strategy: 'none' as const } }
+const waitFor = (milliseconds: number): Promise<void> => {
+  const { promise, resolve } = Promise.withResolvers<void>()
+  setTimeout(resolve, milliseconds)
+  return promise
+}
+
+interface HttpResponseError extends Error {
+  statusCode: number
+  headers: { get(name: string): string | null }
+}
+
+function isRetryableResponseError(error: unknown): error is HttpResponseError {
+  return error instanceof Error
+    && typeof (error as Partial<HttpResponseError>).statusCode === 'number'
+    && typeof (error as Partial<HttpResponseError>).headers?.get === 'function'
+    && ((error as HttpResponseError).statusCode === 408
+      || (error as HttpResponseError).statusCode === 429
+      || (error as HttpResponseError).statusCode >= 500)
+}
+
+function retryAfterMilliseconds(error: HttpResponseError): number | null {
+  const retryAfterMilliseconds = error.headers.get('retry-after-ms')?.trim()
+  if (retryAfterMilliseconds) {
+    const milliseconds = Number(retryAfterMilliseconds)
+    if (Number.isFinite(milliseconds) && milliseconds >= 0) return milliseconds
+  }
+
+  const retryAfter = error.headers.get('retry-after')?.trim()
+  if (!retryAfter) return null
+  const seconds = Number(retryAfter)
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1_000
+  const date = Date.parse(retryAfter)
+  return Number.isFinite(date) ? Math.max(0, date - Date.now()) : null
+}
 
 export class OpenRouterAgent {
   private readonly client: OpenRouter
@@ -17,6 +55,8 @@ export class OpenRouterAgent {
     apiKey: string,
     private readonly model: CampaignManifest['model'],
     private readonly limits: CampaignManifest['agent'],
+    private readonly wait: (milliseconds: number) => Promise<void> = waitFor,
+    private readonly now: () => number = Date.now,
   ) {
     this.client = new OpenRouter({
       apiKey,
@@ -24,6 +64,31 @@ export class OpenRouterAgent {
       httpReferer: 'https://github.com/HoppR-tech/codeconform-bench',
       timeoutMs: 10 * 60 * 1000,
     })
+  }
+
+  private async sendWithRetries<T>(send: (timeoutMs?: number) => Promise<T>): Promise<T> {
+    const startedAt = this.now()
+    let retries = 0
+    while (true) {
+      const elapsed = Math.max(0, this.now() - startedAt)
+      const timeoutMs = retries === 0 ? undefined : Math.max(1, MAX_RETRY_ELAPSED_MS - elapsed)
+      try {
+        return await send(timeoutMs)
+      } catch (error) {
+        const responseError = isRetryableResponseError(error)
+        const connectionError = error instanceof ConnectionError || error instanceof RequestTimeoutError
+        const remaining = MAX_RETRY_ELAPSED_MS - Math.max(0, this.now() - startedAt)
+        if ((!responseError && !connectionError) || retries >= MAX_REQUEST_RETRIES || remaining <= 0) throw error
+        const delay = responseError
+          ? retryAfterMilliseconds(error)
+            ?? (error.statusCode === 429 ? 60_000 : 1_000 * (2 ** retries))
+          : 1_000 * (2 ** retries)
+        if (delay >= remaining) throw error
+        await this.wait(delay)
+        if (this.now() - startedAt >= MAX_RETRY_ELAPSED_MS) throw error
+        retries += 1
+      }
+    }
   }
 
   async run(input: AgentInput, tools: CandidateTools, grace?: GraceTools): Promise<AgentOutput> {
@@ -54,7 +119,7 @@ export class OpenRouterAgent {
         const promptTokenReservation = Buffer.byteLength(JSON.stringify({ messages, tools: toolDefinitions })) + PROMPT_TOKEN_OVERHEAD
         const maxTokens = Math.min(this.model.maxTokens, remainingTokens - promptTokenReservation)
         if (maxTokens < 1) throw new Error('agent token budget exhausted before request')
-        const response = await this.client.chat.send({
+        const response = await this.sendWithRetries((timeoutMs) => this.client.chat.send({
           chatRequest: {
             stream: false,
             model: this.model.id,
@@ -70,7 +135,7 @@ export class OpenRouterAgent {
             ...(this.model.reasoningEffort ? { reasoningEffort: this.model.reasoningEffort } : {}),
             ...(this.model.temperature === undefined ? {} : { temperature: this.model.temperature }),
           },
-        })
+        }, { ...SDK_REQUEST_OPTIONS, ...(timeoutMs === undefined ? {} : { timeoutMs }) }))
         if (!('choices' in response)) throw new Error('OpenRouter unexpectedly returned a streaming response')
         if (
           !response.usage
@@ -125,6 +190,11 @@ export class OpenRouterAgent {
       }
     } catch (error) {
       agentError = error instanceof Error ? error.message : 'unknown error'
+      messages.push({ role: 'system', content: `Harness error: ${agentError}` })
+    }
+
+    if (agentError === null) {
+      agentError = 'agent step budget exhausted'
       messages.push({ role: 'system', content: `Harness error: ${agentError}` })
     }
 
