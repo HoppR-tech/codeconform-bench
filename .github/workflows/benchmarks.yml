@@ -37,12 +37,9 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[run benchmark]')
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 3
       matrix:
         include:
-          - name: Claude Haiku 4.5
-            campaign: campaigns/ohmyform-v2-claude-haiku-4.5.json
-            output: ohmyform-submission-start-v2-claude-haiku-4.5
           - name: GPT-5.6 Luna
             campaign: campaigns/ohmyform-v2-gpt-5.6-luna.json
             output: ohmyform-submission-start-v2-gpt-5.6-luna
