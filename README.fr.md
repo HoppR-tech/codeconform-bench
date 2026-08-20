@@ -1,33 +1,34 @@
 # CodeConform-Bench (CCB)
 
-> Un benchmark exécutable de conformité architecturale du code généré par IA.
+> Un benchmark exécutable de correction fonctionnelle et de qualité du code généré par IA.
 
 [English](README.md) · [Français](README.fr.md)
 
 ## Vue d’ensemble
 
-CodeConform-Bench (CCB) mesure si des agents de développement IA produisent du code qui respecte une architecture logicielle cible.
+CodeConform-Bench (CCB) mesure si des agents de développement IA produisent du code fonctionnel, maintenable et conforme à une architecture logicielle cible.
 
 Pour chaque tâche, CCB exécute deux fois le même modèle, dans des conditions identiques :
 
 - **Baseline** — le modèle travaille sans Grace.
 - **Grace** — le même modèle travaille avec Grace.
 
-Le code produit est évalué par des règles d’architecture exécutables isolées du modèle. Une gate de caractérisation immuable, extérieure au checkout candidat, s’exécute d’abord : un code qui casse le contrat fonctionnel épinglé est déclaré en échec fonctionnel et ne reçoit pas de score d’architecture.
+Le benchmark applique d’abord une gate fonctionnelle immuable, extérieure au checkout candidat. Les échecs fonctionnels ou de l’agent reçoivent un score de qualité nul. Les candidats fonctionnels sont ensuite évalués par des règles déterministes isolées couvrant architecture, maintenabilité, clarté, tests et robustesse.
 
-CCB rend l’effet d’un guidage architectural mesurable, reproductible et réfutable.
+CCB rend la qualité du code de chaque modèle et l’effet de Grace mesurables, reproductibles et réfutables.
 
 ## Ce que CCB mesure
 
 CCB publie :
 
-- **Conformité architecturale** — la proportion de règles d’architecture exécutables qui passent, en score brut et pondéré par criticité.
-- **Taux d’échec fonctionnel** — les runs qui ne compilent pas ou cassent les tests fonctionnels existants.
-- **Delta Grace** — l’écart entre les scores Grace et baseline, pour un même modèle, langage et scénario.
-- **Efficience** — tokens, coût, latence et gain de qualité pour 1 000 tokens supplémentaires.
-- **Régularité** — la distribution des scores sur plusieurs runs, pas une tentative isolée.
+- **Functional pass@1** — la proportion de premières tentatives valides qui préservent le comportement épinglé.
+- **Quality-qualified pass@1** — la proportion qui franchit aussi les seuils globaux et par dimension du rule pack versionné.
+- **Code Quality Score** — la moyenne end-to-end de l’architecture, la maintenabilité, la clarté, les tests et la robustesse ; les échecs fonctionnels ou de l’agent valent zéro.
+- **Delta Grace** — l’écart apparié entre Grace et baseline pour le même modèle, la même tâche et la même tentative.
+- **Efficience** — tokens, coût, latence et gain de qualité pour 1 000 tokens supplémentaires, publiés séparément de la capacité.
+- **Fiabilité** — les échecs candidats restent des résultats scorés ; les erreurs d’infrastructure fournisseur, harness ou évaluateur sont exclues et publiées explicitement.
 
-CCB ne prétend pas mesurer toute la qualité du code. Lisibilité, pertinence métier, sécurité et qualité des tests demandent des évaluations complémentaires.
+La tranche OhMyForm actuelle reste une étude de cas sur une seule tâche. Généraliser entre modèles demande une suite versionnée plus large avec un poids égal par tâche.
 
 ## Protocole
 
@@ -37,10 +38,10 @@ flowchart LR
     T --> G[Même modèle + Grace]
     B --> F1[Gate fonctionnelle]
     G --> F2[Gate fonctionnelle]
-    F1 -->|vert| A1[Règles d'architecture isolées]
-    F2 -->|vert| A2[Règles d'architecture isolées]
-    A1 --> S1[Score baseline]
-    A2 --> S2[Score Grace]
+    F1 -->|vert| A1[Évaluateur qualité isolé]
+    F2 -->|vert| A2[Évaluateur qualité isolé]
+    A1 --> S1[Score qualité baseline]
+    A2 --> S2[Score qualité Grace]
     S1 --> D[Delta mesuré]
     S2 --> D
 ```
@@ -49,10 +50,10 @@ Le protocole est figé et publié avant les runs :
 
 1. Un repo de tâche est provisionné depuis une révision de template épinglée.
 2. Les deux conditions reçoivent la même tâche, les mêmes outils, le même budget de tokens et le même budget d’étapes.
-3. Le modèle reçoit l’intention architecturale, jamais les assertions exécutables.
-4. Chaque condition est répétée au moins cinq fois.
+3. Le modèle reçoit l’intention fonctionnelle et de qualité du code, jamais les assertions exécutables.
+4. Chaque condition est répétée trois fois et agrégée comme tentatives pass@1.
 5. L’évaluateur s’exécute hors du workspace de l’agent ; ses règles ne sont pas accessibles au modèle.
-6. Les résultats publient médianes, intervalles de confiance, données brutes de chaque run et versions exactes des modèles.
+6. Les résultats publient moyennes, intervalles appariés, scores par dimension, données brutes et versions exactes des modèles.
 
 ## Architecture implémentée du benchmark
 
@@ -73,11 +74,11 @@ flowchart LR
     G --> X
     X --> F[Gate fonctionnelle]
     F -->|vert| E[Évaluateur séparé]
-    F -->|rouge| R[Run sans score d'architecture]
+    F -->|rouge| R[Résultat scoré à qualité nulle]
     E --> R[Agrégat et provenance]
 ```
 
-L’ordre baseline/Grace alterne entre les paires. Le delta Grace utilise uniquement les paires complètes et scorées ; les échecs fonctionnels ou d’évaluation restent des statuts séparés, jamais des zéros imputés.
+L’ordre baseline/Grace alterne entre les paires. Les échecs fonctionnels ou de l’agent valent zéro ; les erreurs d’infrastructure fournisseur, harness ou évaluateur sont exclues des dénominateurs concernés et publiées explicitement. Les deltas Grace utilisent toutes les paires valides des deux côtés.
 
 ## Matrice initiale des modèles
 
@@ -93,15 +94,17 @@ Gemini 3.1 Pro Preview est inclus volontairement dans le niveau premium. Chaque 
 
 Sources : [Claude Haiku 4.5](https://openrouter.ai/anthropic/claude-haiku-4.5), [Claude Sonnet 5](https://openrouter.ai/anthropic/claude-sonnet-5), [Claude Fable 5](https://openrouter.ai/anthropic/claude-fable-5), [GPT-5.6 Luna](https://openrouter.ai/openai/gpt-5.6-luna), [GPT-5.6 Terra](https://openrouter.ai/openai/gpt-5.6-terra), [GPT-5.6 Sol](https://openrouter.ai/openai/gpt-5.6-sol), [Gemini 3.1 Flash Lite](https://openrouter.ai/google/gemini-3.1-flash-lite), [Gemini 3.1 Pro Preview](https://openrouter.ai/google/gemini-3.1-pro-preview), [Gemini 3.7 Flash](https://openrouter.ai/google/gemini-3.7-flash), [Mistral Small 4](https://openrouter.ai/mistralai/mistral-small-2603), [Mistral Medium 3.5](https://openrouter.ai/mistralai/mistral-medium-3-5) et [configuration de raisonnement OpenRouter](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens).
 
-## Règles d’architecture
+## Grille de qualité du code
 
-Chaque adaptateur de langage exprime la même sémantique architecturale avec son outillage natif. Les catégories initiales sont :
+L’évaluateur TypeScript publie cinq dimensions normalisées et pondérées dans le rule pack : architecture (30 %), maintenabilité (25 %), clarté et discipline de typage (20 %), tests (15 %) et robustesse (10 %). Le rule pack OhMyForm v2 vérifie par analyse des dépendances et de l’AST TypeScript :
 
-- direction autorisée des dépendances entre couches ;
-- cycles de dépendances interdits ;
-- placement et conventions de nommage des rôles architecturaux ;
-- accès à l’infrastructure interdit hors des frontières d’infrastructure ;
-- score pondéré selon les violations bloquantes, majeures ou mineures.
+- direction des dépendances, rôles requis et cycles interdits ;
+- bornes de taille des fichiers et fonctions, nombre de paramètres et complexité du contrôle ;
+- absence de `any` explicite, suppressions de diagnostics et assertions non-nulles dans la tranche évaluée ;
+- tests ciblés de succès et d’échec, sans cas ignoré ou focalisé ;
+- absence de `catch` vide, d’exécution dynamique et d’import permettant de lancer des processus.
+
+Un candidat n’est qualifié que si son score pondéré atteint 70 % et si chaque dimension atteint son minimum publié. Les adaptateurs d’autres langages peuvent employer leurs outils natifs, mais doivent conserver les mêmes dimensions et le même contrat de score.
 
 La matrice prévue couvre Java/Kotlin, C#/.NET, TypeScript, Python et Go.
 
@@ -119,7 +122,7 @@ Le benchmark vérifie un comportement observable, pas la résistance à un progr
 
 ## État et vérification
 
-La première tranche exécutable est `campaigns/ohmyform-v1.json` : cinq paires sur la tâche OhMyForm submission-start épinglée. Le harness public, le parseur strict de manifest, la boucle d’outils OpenRouter, l’exécuteur Docker, la gate fonctionnelle, l’adaptateur d’évaluation, l’agrégation appariée et les preuves de provenance sont implémentés.
+La première tranche v2 est `campaigns/ohmyform-v2.json` : trois tentatives pass@1 appariées sur la tâche OhMyForm submission-start épinglée. Le harness public, le parseur strict de manifest v2, la boucle d’outils OpenRouter, l’exécuteur Docker, la gate fonctionnelle, l’évaluateur multidimensionnel, l’agrégation appariée qui tient compte des échecs et les preuves de provenance sont implémentés.
 
 ```sh
 npm ci --ignore-scripts
@@ -130,7 +133,7 @@ Les agents de code locaux lisent `.mcp.json` et effectuent l’OAuth Grace lors 
 
 ### Première cible de benchmark
 
-Le checkout OhMyForm audité et la campagne sont épinglés dans `campaigns/ohmyform-v1.json`.
+Le checkout OhMyForm audité et la campagne sont épinglés dans `campaigns/ohmyform-v2.json`.
 
 #### Architecture actuelle et état d’OhMyForm
 

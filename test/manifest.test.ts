@@ -3,11 +3,11 @@ import { test } from 'node:test'
 import { parseManifest } from '../src/manifest.js'
 
 const valid = {
-  schemaVersion: 1,
-  campaignId: 'ohmyform-v1',
+  schemaVersion: 2,
+  campaignId: 'ohmyform-v2',
   target: { checkout: '/tmp/target', repository: 'HoppR-tech/ccb-ohmyform', commit: 'a'.repeat(40), tree: 'b'.repeat(40), digest: 'sha256:' + 'f'.repeat(64) },
   task: { id: 'clean-architecture', prompt: 'Refactor.' },
-  repetitions: 5,
+  repetitions: 3,
   order: ['baseline', 'grace'],
   model: { id: 'openai/gpt-5.2-codex', providerOrder: ['OpenAI'], allowFallbacks: false, maxTokens: 32_000 },
   agent: { maxSteps: 40, maxCostUsd: 30, maxTotalTokens: 200_000, maxToolOutputBytes: 131_072 },
@@ -16,7 +16,7 @@ const valid = {
   evaluator: {
     runner: { path: '/tmp/evaluate.mjs', digest: 'sha256:' + 'e'.repeat(64) },
     command: ['node', '{runner}', '--candidate', '{candidate}', '--rule-pack', '{rulePack}', '--result', '{result}'],
-    rulePack: { id: 'ohmyform', version: '1', digest: 'sha256:' + 'd'.repeat(64), path: '/tmp/rules.cjs' },
+    rulePack: { id: 'ohmyform', version: '2', digest: 'sha256:' + 'd'.repeat(64), path: '/tmp/rules.cjs' },
   },
   grace: { mcpUrl: 'https://grace.example/mcp', tokenEnv: 'GRACE_MCP_TOKEN' },
   outputDirectory: '/tmp/results',
@@ -25,7 +25,7 @@ const valid = {
 }
 
 test('accepts a fully pinned campaign manifest', () => {
-  assert.equal(parseManifest(valid).campaignId, 'ohmyform-v1')
+  assert.equal(parseManifest(valid).campaignId, 'ohmyform-v2')
 })
 
 test('rejects mutable execution inputs', () => {

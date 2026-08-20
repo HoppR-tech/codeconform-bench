@@ -1,14 +1,11 @@
 import { lstat, mkdir, realpath, writeFile } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
-import type { AgentOutput, CampaignAggregate, CampaignManifest, CampaignPorts, CampaignResult, Condition, ConditionSummary, RunRecord } from './contracts.js'
+import { QUALITY_DIMENSIONS, type AgentOutput, type CampaignAggregate, type CampaignManifest, type CampaignPorts, type CampaignResult, type Condition, type ConditionSummary, type QualityDimensions, type RunRecord } from './contracts.js'
 import { hashTree, sha256 } from './digest.js'
 import { renderCampaignReport } from './report.js'
 
-function median(values: readonly number[]): number | null {
-  if (values.length === 0) return null
-  const sorted = [...values].sort((left, right) => left - right)
-  const middle = Math.floor(sorted.length / 2)
-  return sorted.length % 2 === 0 ? ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2 : (sorted[middle] ?? null)
+function mean(values: readonly number[]): number | null {
+  return values.length === 0 ? null : values.reduce((total, value) => total + value, 0) / values.length
 }
 
 function deterministicRandom(seed: number): () => number {
@@ -24,34 +21,73 @@ function deterministicRandom(seed: number): () => number {
 function bootstrapInterval(values: readonly number[], samples: number, seed: number): [number, number] | null {
   if (values.length === 0) return null
   const random = deterministicRandom(seed)
-  const medians: number[] = []
+  const means: number[] = []
   for (let sample = 0; sample < samples; sample += 1) {
     const resampled = Array.from({ length: values.length }, () => values[Math.floor(random() * values.length)] ?? 0)
-    medians.push(median(resampled) ?? 0)
+    means.push(mean(resampled) ?? 0)
   }
-  medians.sort((left, right) => left - right)
+  means.sort((left, right) => left - right)
   return [
-    medians[Math.floor((medians.length - 1) * 0.025)] ?? 0,
-    medians[Math.ceil((medians.length - 1) * 0.975)] ?? 0,
+    means[Math.floor((means.length - 1) * 0.025)] ?? 0,
+    means[Math.ceil((means.length - 1) * 0.975)] ?? 0,
   ]
+}
+
+function functionalOutcome(record: RunRecord): number | null {
+  if (record.status === 'infrastructure_error') return null
+  return record.status === 'scored' || record.status === 'evaluator_error' ? 1 : 0
+}
+
+function qualityOutcome(record: RunRecord): number | null {
+  if (record.status === 'evaluator_error' || record.status === 'infrastructure_error') return null
+  return record.status === 'scored' ? record.codeQualityScore : 0
+}
+
+function qualityPassOutcome(record: RunRecord): number | null {
+  if (record.status === 'evaluator_error' || record.status === 'infrastructure_error') return null
+  return record.status === 'scored' && record.qualityQualified ? 1 : 0
+}
+
+function dimensionMeans(records: readonly RunRecord[]): QualityDimensions | null {
+  const valid = records.filter((record) => record.status !== 'evaluator_error' && record.status !== 'infrastructure_error')
+  if (valid.length === 0) return null
+  return Object.fromEntries(QUALITY_DIMENSIONS.map((dimension) => [
+    dimension,
+    mean(valid.map((record) => record.status === 'scored' ? (record.qualityDimensions?.[dimension] ?? 0) : 0)) ?? 0,
+  ])) as QualityDimensions
 }
 
 function conditionSummary(records: readonly RunRecord[], condition: Condition): ConditionSummary {
   const selected = records.filter((record) => record.condition === condition)
-  const scored = selected.filter((record) => record.status === 'scored')
-  const functionalFailures = selected.filter((record) => record.status === 'functional_failed').length
+  const functionalOutcomes = selected.flatMap((record) => {
+    const outcome = functionalOutcome(record)
+    return outcome === null ? [] : [outcome]
+  })
+  const qualityScores = selected.flatMap((record) => {
+    const score = qualityOutcome(record)
+    return score === null ? [] : [score]
+  })
+  const qualityPasses = selected.flatMap((record) => {
+    const outcome = qualityPassOutcome(record)
+    return outcome === null ? [] : [outcome]
+  })
   return {
     total: selected.length,
-    scored: scored.length,
-    functionalFailures,
+    validFunctionalAttempts: functionalOutcomes.length,
+    validQualityAttempts: qualityScores.length,
+    functionalPasses: functionalOutcomes.reduce((total, outcome) => total + outcome, 0),
+    qualityPasses: qualityPasses.reduce((total, outcome) => total + outcome, 0),
+    functionalFailures: selected.filter((record) => record.status === 'functional_failed').length,
     agentErrors: selected.filter((record) => record.status === 'agent_error').length,
+    infrastructureErrors: selected.filter((record) => record.status === 'infrastructure_error').length,
     evaluatorErrors: selected.filter((record) => record.status === 'evaluator_error').length,
-    functionalFailureRate: selected.length === 0 ? null : functionalFailures / selected.length,
-    architectureMedian: median(scored.flatMap((record) => record.architectureScore === null ? [] : [record.architectureScore])),
-    weightedArchitectureMedian: median(scored.flatMap((record) => record.weightedArchitectureScore === null ? [] : [record.weightedArchitectureScore])),
+    functionalPassAt1: mean(functionalOutcomes),
+    qualityPassAt1: mean(qualityPasses),
+    codeQualityMean: mean(qualityScores),
+    dimensionMeans: dimensionMeans(selected),
     promptTokens: selected.reduce((total, record) => total + record.promptTokens, 0),
     completionTokens: selected.reduce((total, record) => total + record.completionTokens, 0),
-    durationMedianMs: median(selected.map((record) => record.durationMs)),
+    durationMeanMs: mean(selected.map((record) => record.durationMs)),
     cost: selected.every((record) => record.cost === null) ? null : selected.reduce((total, record) => total + (record.cost ?? 0), 0),
   }
 }
@@ -63,14 +99,24 @@ export function aggregateRecords(records: readonly RunRecord[], bootstrapSamples
     pair[record.condition] = record
     pairs.set(record.pairId, pair)
   }
-  const deltas: number[] = []
+  const functionalDeltas: number[] = []
+  const qualityPassDeltas: number[] = []
+  const qualityDeltas: number[] = []
   const tokenEfficiency: number[] = []
   for (const pair of pairs.values()) {
-    if (pair.baseline?.status !== 'scored' || pair.grace?.status !== 'scored') continue
-    if (pair.baseline.weightedArchitectureScore === null || pair.grace.weightedArchitectureScore === null) continue
-    const delta = pair.grace.weightedArchitectureScore - pair.baseline.weightedArchitectureScore
-    deltas.push(delta)
+    if (!pair.baseline || !pair.grace) continue
+    const baselineFunctional = functionalOutcome(pair.baseline)
+    const graceFunctional = functionalOutcome(pair.grace)
+    if (baselineFunctional !== null && graceFunctional !== null) functionalDeltas.push(graceFunctional - baselineFunctional)
+    const baselineScore = qualityOutcome(pair.baseline)
+    const graceScore = qualityOutcome(pair.grace)
+    const baselinePass = qualityPassOutcome(pair.baseline)
+    const gracePass = qualityPassOutcome(pair.grace)
+    if (baselineScore === null || graceScore === null || baselinePass === null || gracePass === null) continue
 
+    const delta = graceScore - baselineScore
+    qualityPassDeltas.push(gracePass - baselinePass)
+    qualityDeltas.push(delta)
     const baselineTokens = pair.baseline.promptTokens + pair.baseline.completionTokens
     const graceTokens = pair.grace.promptTokens + pair.grace.completionTokens
     if (graceTokens > baselineTokens) tokenEfficiency.push(delta * 1_000 / (graceTokens - baselineTokens))
@@ -79,10 +125,13 @@ export function aggregateRecords(records: readonly RunRecord[], bootstrapSamples
   return {
     baseline: conditionSummary(records, 'baseline'),
     grace: conditionSummary(records, 'grace'),
-    completeScoredPairs: deltas.length,
-    graceDeltaMedian: median(deltas),
-    graceDeltaBootstrap95: bootstrapInterval(deltas, bootstrapSamples, seed),
-    qualityGainPerAdditional1000TokensMedian: median(tokenEfficiency),
+    functionalPairedAttempts: functionalDeltas.length,
+    qualityPairedAttempts: qualityDeltas.length,
+    graceFunctionalPassAt1Delta: mean(functionalDeltas),
+    graceQualityPassAt1Delta: mean(qualityPassDeltas),
+    graceCodeQualityDeltaMean: mean(qualityDeltas),
+    graceCodeQualityBootstrap95: bootstrapInterval(qualityDeltas, bootstrapSamples, seed),
+    qualityGainPerAdditional1000TokensMean: mean(tokenEfficiency),
     bootstrapSamples,
     seed,
   }
@@ -127,7 +176,7 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
       } catch (error) {
         const message = error instanceof Error ? error.message : 'agent failed'
         agent = {
-          status: 'agent_error',
+          status: 'infrastructure_error',
           error: message,
           model: manifest.model.id,
           provider: null,
@@ -142,10 +191,11 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
       await writeFile(resolve(output, 'runs', `${pairId}-${condition}-trace.json`), traceJson)
       const candidateDigest = await hashTree(workspace)
 
-      let status: RunRecord['status'] = 'agent_error'
+      let status: RunRecord['status'] = agent.status === 'infrastructure_error' ? 'infrastructure_error' : 'agent_error'
       let gateExitCode: number | null = null
-      let architectureScore: number | null = null
-      let weightedArchitectureScore: number | null = null
+      let codeQualityScore: number | null = null
+      let qualityQualified: boolean | null = null
+      let qualityDimensions: QualityDimensions | null = null
       let violations: number | null = null
 
       if (agent.status === 'completed') {
@@ -159,8 +209,9 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
             status = 'evaluator_error'
           } else {
             status = 'scored'
-            architectureScore = evaluation.score ?? null
-            weightedArchitectureScore = evaluation.weightedScore ?? null
+            codeQualityScore = evaluation.qualityScore ?? null
+            qualityQualified = evaluation.qualityQualified ?? null
+            qualityDimensions = evaluation.dimensions ?? null
             violations = evaluation.violations ?? null
           }
         }
@@ -181,8 +232,9 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
         completionTokens: agent.completionTokens,
         cost: agent.cost,
         functionalGateExitCode: gateExitCode,
-        architectureScore,
-        weightedArchitectureScore,
+        codeQualityScore,
+        qualityQualified,
+        qualityDimensions,
         violations,
         durationMs: Date.now() - startedAt,
       }

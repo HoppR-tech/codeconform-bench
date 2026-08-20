@@ -2,10 +2,10 @@ import { OpenRouter } from '@openrouter/sdk'
 import { ConnectionError, RequestTimeoutError } from '@openrouter/sdk/models/errors'
 import type { ChatMessages } from '@openrouter/sdk/models'
 import { candidateToolDefinitions, CandidateTools } from './candidate-tools.js'
-import type { GraceTools } from './grace-mcp.js'
+import { GraceToolInputError, type GraceTools } from './grace-mcp.js'
 import type { AgentInput, AgentOutput, CampaignManifest } from './contracts.js'
 
-const SYSTEM_PROMPT = `You are editing one candidate repository for an architecture benchmark.
+const SYSTEM_PROMPT = `You are editing one candidate repository for a code-quality benchmark.
 Use only the declared tools. Do not request web access, external repositories, hidden tests, evaluator rules, credentials, or paths outside the candidate checkout.
 Inspect before writing, make the smallest complete change, run the approved validation command, then finish with a concise summary.`
 const PROMPT_TOKEN_OVERHEAD = 1_024
@@ -18,6 +18,7 @@ const waitFor = (milliseconds: number): Promise<void> => {
   setTimeout(resolve, milliseconds)
   return promise
 }
+class AgentLimitError extends Error {}
 
 interface HttpResponseError extends Error {
   statusCode: number
@@ -112,13 +113,14 @@ export class OpenRouterAgent {
     let provider: string | null = null
     let toolOutputBytes = 0
     let agentError: string | null = null
+    let failureStatus: 'agent_error' | 'infrastructure_error' = 'agent_error'
 
     try {
       for (let step = 0; step < this.limits.maxSteps; step += 1) {
         const remainingTokens = this.limits.maxTotalTokens - promptTokens - completionTokens
         const promptTokenReservation = Buffer.byteLength(JSON.stringify({ messages, tools: toolDefinitions })) + PROMPT_TOKEN_OVERHEAD
         const maxTokens = Math.min(this.model.maxTokens, remainingTokens - promptTokenReservation)
-        if (maxTokens < 1) throw new Error('agent token budget exhausted before request')
+        if (maxTokens < 1) throw new AgentLimitError('agent token budget exhausted before request')
         const response = await this.sendWithRetries((timeoutMs) => this.client.chat.send({
           chatRequest: {
             stream: false,
@@ -153,8 +155,8 @@ export class OpenRouterAgent {
         completionTokens += response.usage.completionTokens
         cost = Math.round((cost + response.usage.cost) * COST_SCALE) / COST_SCALE
         hasCost = true
-        if (promptTokens + completionTokens > this.limits.maxTotalTokens) throw new Error('agent token budget exceeded')
-        if (cost > this.limits.maxCostUsd) throw new Error('agent cost budget exceeded')
+        if (promptTokens + completionTokens > this.limits.maxTotalTokens) throw new AgentLimitError('agent token budget exceeded')
+        if (cost > this.limits.maxCostUsd) throw new AgentLimitError('agent cost budget exceeded')
         const choice = response.choices[0]
         if (!choice) throw new Error('OpenRouter returned no completion choice')
         provider = response.openrouterMetadata?.endpoints.available.find((endpoint) => endpoint.selected)?.provider ?? provider
@@ -176,20 +178,28 @@ export class OpenRouterAgent {
 
         for (const call of calls) {
           let content: string
-          try {
-            content = graceToolNames.has(call.function.name)
-              ? await graceTools!.execute(call.function.name, call.function.arguments)
-              : await tools.execute(call.function.name, call.function.arguments)
-          } catch (error) {
-            content = JSON.stringify({ error: error instanceof Error ? error.message : 'tool failed' })
+          if (graceToolNames.has(call.function.name)) {
+            try {
+              content = await graceTools!.execute(call.function.name, call.function.arguments)
+            } catch (error) {
+              if (!(error instanceof GraceToolInputError)) throw error
+              content = JSON.stringify({ error: error.message })
+            }
+          } else {
+            try {
+              content = await tools.execute(call.function.name, call.function.arguments)
+            } catch (error) {
+              content = JSON.stringify({ error: error instanceof Error ? error.message : 'tool failed' })
+            }
           }
           toolOutputBytes += Buffer.byteLength(content)
-          if (toolOutputBytes > this.limits.maxToolOutputBytes) throw new Error('agent tool-output budget exceeded')
+          if (toolOutputBytes > this.limits.maxToolOutputBytes) throw new AgentLimitError('agent tool-output budget exceeded')
           messages.push({ role: 'tool', toolCallId: call.id, content })
         }
       }
     } catch (error) {
       agentError = error instanceof Error ? error.message : 'unknown error'
+      failureStatus = error instanceof AgentLimitError ? 'agent_error' : 'infrastructure_error'
       messages.push({ role: 'system', content: `Harness error: ${agentError}` })
     }
 
@@ -199,7 +209,7 @@ export class OpenRouterAgent {
     }
 
     return {
-      status: 'agent_error',
+      status: failureStatus,
       error: agentError,
       model: this.model.id,
       provider,

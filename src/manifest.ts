@@ -52,7 +52,7 @@ function mounts(value: unknown, name: string, baseDirectory: string, targetPatte
 
 export function parseManifest(value: unknown, baseDirectory = process.cwd()): CampaignManifest {
   const root = object(value, 'manifest')
-  if (root.schemaVersion !== 1) throw new Error('schemaVersion must be 1')
+  if (root.schemaVersion !== 2) throw new Error('schemaVersion must be 2')
 
   const target = object(root.target, 'target')
   const task = object(root.task, 'task')
@@ -115,7 +115,7 @@ export function parseManifest(value: unknown, baseDirectory = process.cwd()): Ca
   }
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     campaignId: string(root.campaignId, 'campaignId'),
     target: {
       checkout,
@@ -128,7 +128,7 @@ export function parseManifest(value: unknown, baseDirectory = process.cwd()): Ca
       id: string(task.id, 'task.id'),
       prompt: string(task.prompt, 'task.prompt'),
     },
-    repetitions: integer(root.repetitions, 'repetitions', 5),
+    repetitions: integer(root.repetitions, 'repetitions', 3),
     order,
     model: {
       id: string(model.id, 'model.id'),

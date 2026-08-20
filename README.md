@@ -1,33 +1,34 @@
 # CodeConform-Bench (CCB)
 
-> An executable benchmark for architectural conformance in AI-generated code.
+> An executable benchmark for functional correctness and code quality in AI-generated software.
 
 [English](README.md) · [Français](README.fr.md)
 
 ## Overview
 
-CodeConform-Bench (CCB) measures whether AI coding agents produce code that respects a target software architecture.
+CodeConform-Bench (CCB) measures whether AI coding agents produce functional, maintainable code that respects a target software architecture.
 
 For every task, CCB runs the same model under the same conditions twice:
 
 - **Baseline** — the model works without Grace.
 - **Grace** — the same model works with Grace.
 
-The benchmark evaluates the resulting code with isolated, executable architecture rules. An immutable characterization gate runs first from outside the candidate checkout: code that breaks the pinned functional contract is reported as a functional failure and receives no architectural score.
+The benchmark first applies an immutable functional gate outside the candidate checkout. Functional and agent failures receive a zero code-quality score. Functional candidates are then evaluated by isolated, deterministic rules covering architecture, maintainability, clarity, tests, and robustness.
 
-CCB is designed to make the effect of architectural guidance measurable, reproducible, and falsifiable.
+CCB is designed to make model code quality and the effect of Grace measurable, reproducible, and falsifiable.
 
 ## What CCB measures
 
 CCB reports:
 
-- **Architectural conformance** — the proportion of executable architecture rules that pass, both raw and criticality-weighted.
-- **Functional failure rate** — runs that fail to build or break the existing functional tests.
-- **Grace delta** — the difference between Grace and baseline scores for the same model, language, and task.
-- **Efficiency** — tokens, cost, latency, and quality gain per additional 1,000 tokens.
-- **Consistency** — score distribution across repeated runs, not a single lucky attempt.
+- **Functional pass@1** — the share of valid first attempts that preserve the pinned behavior.
+- **Quality-qualified pass@1** — the share that also clears the versioned overall and per-dimension quality thresholds.
+- **Code Quality Score** — the mean end-to-end score across architecture, maintainability, clarity, tests, and robustness; functional and agent failures count as zero.
+- **Grace delta** — the paired difference between Grace and baseline for the same model, task, and attempt.
+- **Efficiency** — tokens, cost, latency, and quality gain per additional 1,000 tokens, reported separately from capability.
+- **Reliability** — candidate failures remain scored outcomes; provider, harness, and evaluator infrastructure failures are excluded and reported explicitly.
 
-CCB does **not** claim to measure every aspect of code quality. Readability, domain correctness, security, and test quality require complementary evaluations.
+The current OhMyForm slice is a single-task case study. Cross-model generalization requires a larger, versioned task suite with equal task weighting.
 
 ## Protocol
 
@@ -37,10 +38,10 @@ flowchart LR
     T --> G[Same model + Grace]
     B --> F1[Functional gate]
     G --> F2[Functional gate]
-    F1 -->|pass| A1[Isolated architecture rules]
-    F2 -->|pass| A2[Isolated architecture rules]
-    A1 --> S1[Baseline score]
-    A2 --> S2[Grace score]
+    F1 -->|pass| A1[Isolated quality evaluator]
+    F2 -->|pass| A2[Isolated quality evaluator]
+    A1 --> S1[Baseline code-quality score]
+    A2 --> S2[Grace code-quality score]
     S1 --> D[Measured delta]
     S2 --> D
 ```
@@ -49,10 +50,10 @@ The protocol is fixed and published before benchmark runs:
 
 1. A task repository is provisioned from a pinned template revision.
 2. The same task, tool access, token budget, and step budget are supplied to both conditions.
-3. The model receives the architectural intent, but never the executable assertions.
-4. Each condition is repeated at least five times.
+3. The model receives the functional and code-quality intent, but never the executable assertions.
+4. Each condition is repeated three times and aggregated as pass@1 attempts.
 5. The evaluator runs separately from the agent workspace; its rules are not available to the model.
-6. Results include medians, confidence intervals, raw run data, and exact model versions.
+6. Results include means, paired confidence intervals, dimension scores, raw run data, and exact model versions.
 
 ## Implemented benchmark architecture
 
@@ -73,11 +74,11 @@ flowchart LR
     G --> X
     X --> F[Functional gate]
     F -->|pass| E[Separate evaluator]
-    F -->|fail| R[Run record without architecture score]
+    F -->|fail| R[Zero-quality scored outcome]
     E --> R[Aggregate and provenance]
 ```
 
-Baseline/Grace execution order is counterbalanced between pairs. The aggregate uses only complete scored pairs for Grace delta; functional and evaluator failures are reported separately rather than imputed as zero.
+Baseline/Grace execution order is counterbalanced between pairs. Functional and agent failures count as zero; provider, harness, and evaluator infrastructure failures are excluded from applicable denominators and reported explicitly. Grace deltas use every pair with valid measurements on both sides.
 
 ## Initial model matrix
 
@@ -93,15 +94,17 @@ Gemini 3.1 Pro Preview is intentionally included in the premium tier. Every resu
 
 Sources: [Claude Haiku 4.5](https://openrouter.ai/anthropic/claude-haiku-4.5), [Claude Sonnet 5](https://openrouter.ai/anthropic/claude-sonnet-5), [Claude Fable 5](https://openrouter.ai/anthropic/claude-fable-5), [GPT-5.6 Luna](https://openrouter.ai/openai/gpt-5.6-luna), [GPT-5.6 Terra](https://openrouter.ai/openai/gpt-5.6-terra), [GPT-5.6 Sol](https://openrouter.ai/openai/gpt-5.6-sol), [Gemini 3.1 Flash Lite](https://openrouter.ai/google/gemini-3.1-flash-lite), [Gemini 3.1 Pro Preview](https://openrouter.ai/google/gemini-3.1-pro-preview), [Gemini 3.7 Flash](https://openrouter.ai/google/gemini-3.7-flash), [Mistral Small 4](https://openrouter.ai/mistralai/mistral-small-2603), [Mistral Medium 3.5](https://openrouter.ai/mistralai/mistral-medium-3-5), and [OpenRouter reasoning configuration](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens).
 
-## Architecture rules
+## Code-quality rubric
 
-Each language adapter expresses the same architectural semantics through its native tooling. The initial rule categories are:
+The TypeScript evaluator publishes five normalized dimensions with versioned weights: architecture (30%), maintainability (25%), clarity and type discipline (20%), tests (15%), and robustness (10%). The OhMyForm v2 rule pack uses dependency analysis and TypeScript AST checks for:
 
-- allowed dependency direction between layers;
-- forbidden dependency cycles;
-- placement and naming conventions for architectural roles;
-- forbidden infrastructure access outside infrastructure boundaries;
-- severity-weighted scoring for blocking, major, and minor violations.
+- allowed dependency direction, required roles, and forbidden cycles;
+- bounded file, function, parameter, and control-flow complexity;
+- absence of explicit `any`, diagnostic suppressions, and non-null assertions in the evaluated slice;
+- focused success and failure tests without skipped or focused cases;
+- absence of empty catches, dynamic code execution, and process-spawning imports.
+
+A candidate is quality-qualified only if its weighted score reaches 70% and every dimension reaches its published minimum. Language adapters may use native tooling, but must preserve the same public dimensions and score contract.
 
 The planned language matrix includes Java/Kotlin, C#/.NET, TypeScript, Python, and Go.
 
@@ -119,7 +122,7 @@ The benchmark tests observable behavior, not resistance to a deliberately test-a
 
 ## Status and verification
 
-The first runnable slice is `campaigns/ohmyform-v1.json`: five paired runs against the pinned OhMyForm submission-start task. The public harness, strict manifest parser, OpenRouter tool loop, Docker executor, functional gating, evaluator adapter, paired aggregation, and provenance records are implemented.
+The first v2 slice is `campaigns/ohmyform-v2.json`: three paired pass@1 attempts against the pinned OhMyForm submission-start task. The public harness, strict v2 manifest parser, OpenRouter tool loop, Docker executor, functional gate, multidimensional evaluator adapter, outcome-aware paired aggregation, and provenance records are implemented.
 
 ```sh
 npm ci --ignore-scripts

@@ -2,6 +2,8 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import type { ChatFunctionTool } from '@openrouter/sdk/models'
 type GraceFunctionTool = Extract<ChatFunctionTool, { type: 'function' }>
+export class GraceToolInputError extends Error {}
+
 
 export interface GraceTools {
   readonly definitions: readonly GraceFunctionTool[]
@@ -46,8 +48,15 @@ export async function connectGraceMcp(url: string, token: string): Promise<Grace
       definitions,
       ...(instructions ? { instructions } : {}),
       execute: async (name, input) => {
-        const args: unknown = JSON.parse(input)
-        if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error('Grace MCP tool arguments must be a JSON object')
+        let args: unknown
+        try {
+          args = JSON.parse(input)
+        } catch {
+          throw new GraceToolInputError('Grace MCP tool arguments must be valid JSON')
+        }
+        if (!args || typeof args !== 'object' || Array.isArray(args)) {
+          throw new GraceToolInputError('Grace MCP tool arguments must be a JSON object')
+        }
         return JSON.stringify(await client.callTool({ name, arguments: args as Record<string, unknown> }))
       },
       close,

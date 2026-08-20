@@ -1,4 +1,4 @@
-name: Architecture benchmarks
+name: Code quality benchmarks
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ohmyform-architecture-benchmark-v1
+  group: ohmyform-code-quality-benchmark-v2
   cancel-in-progress: false
 
 jobs:
@@ -41,17 +41,17 @@ jobs:
       matrix:
         include:
           - name: Claude Haiku 4.5
-            campaign: campaigns/ohmyform-v1-claude-haiku-4.5.json
-            output: ohmyform-submission-start-v1-claude-haiku-4.5
+            campaign: campaigns/ohmyform-v2-claude-haiku-4.5.json
+            output: ohmyform-submission-start-v2-claude-haiku-4.5
           - name: GPT-5.6 Luna
-            campaign: campaigns/ohmyform-v1-gpt-5.6-luna.json
-            output: ohmyform-submission-start-v1-gpt-5.6-luna
+            campaign: campaigns/ohmyform-v2-gpt-5.6-luna.json
+            output: ohmyform-submission-start-v2-gpt-5.6-luna
           - name: Gemini 3.1 Flash Lite
-            campaign: campaigns/ohmyform-v1-gemini-3.1-flash-lite.json
-            output: ohmyform-submission-start-v1-gemini-3.1-flash-lite
+            campaign: campaigns/ohmyform-v2-gemini-3.1-flash-lite.json
+            output: ohmyform-submission-start-v2-gemini-3.1-flash-lite
           - name: Mistral Small 2603
-            campaign: campaigns/ohmyform-v1-mistral-small-2603.json
-            output: ohmyform-submission-start-v1-mistral-small-2603
+            campaign: campaigns/ohmyform-v2-mistral-small-2603.json
+            output: ohmyform-submission-start-v2-mistral-small-2603
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:
@@ -75,8 +75,8 @@ jobs:
           mkdir -p .bench/targets .bench/dependencies
           git clone --filter=blob:none https://github.com/HoppR-tech/ccb-ohmyform.git .bench/targets/ccb-ohmyform
           git -C .bench/targets/ccb-ohmyform checkout --detach 0f602c646447cb8efc0ad346a2bf4869c30d2360
-          git clone --filter=blob:none --branch benchmark/ohmyform-v1 https://github.com/HoppR-tech/ccb-evaluator.git .bench/evaluator
-          git -C .bench/evaluator checkout --detach 6f8b1bb5c2724da78bfeba72fb96af8dca546d84
+          git clone --filter=blob:none --branch benchmark/ohmyform-v2 https://github.com/HoppR-tech/ccb-evaluator.git .bench/evaluator
+          git -C .bench/evaluator checkout --detach 67a93b1d5bf55386ac3f561bd84854d04b095440
           npm ci --ignore-scripts --prefix .bench/evaluator
           mkdir -p .bench/dependencies/ohmyform-v1-api
           cp .bench/targets/ccb-ohmyform/api/package.json .bench/targets/ccb-ohmyform/api/yarn.lock .bench/dependencies/ohmyform-v1-api/
@@ -93,7 +93,7 @@ jobs:
           GRACE_MCP_TOKEN: ${{ secrets.GRACE_MCP_TOKEN }}
         run: test -n "$OPENROUTER_API_KEY" && test -n "$GRACE_MCP_TOKEN"
 
-      - name: Run five paired baseline and Grace conditions
+      - name: Run three paired baseline and Grace conditions
         env:
           CAMPAIGN: ${{ matrix.campaign }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}

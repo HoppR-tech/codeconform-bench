@@ -1,6 +1,6 @@
 import { mkdir, readFile, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import type { CampaignManifest, Condition, EvaluatorResult } from './contracts.js'
+import { QUALITY_DIMENSIONS, type CampaignManifest, type Condition, type EvaluatorResult, type QualityDimensions } from './contracts.js'
 import { sha256 } from './digest.js'
 import { runProcess } from './process.js'
 
@@ -8,6 +8,13 @@ const EVALUATOR_TIMEOUT_MS = 2 * 60 * 1000
 
 function finiteScore(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1 ? value : undefined
+}
+
+function qualityDimensions(value: unknown): QualityDimensions | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const dimensions = value as Record<string, unknown>
+  if (QUALITY_DIMENSIONS.some((dimension) => finiteScore(dimensions[dimension]) === undefined)) return null
+  return Object.fromEntries(QUALITY_DIMENSIONS.map((dimension) => [dimension, dimensions[dimension]])) as QualityDimensions
 }
 
 export class ProcessEvaluator {
@@ -47,12 +54,17 @@ export class ProcessEvaluator {
       if (result.status !== 'passing' && result.status !== 'failing') return { status: 'evaluator_error' }
       if (!Number.isInteger(result.violations) || (result.violations as number) < 0) return { status: 'evaluator_error' }
 
-      const fallbackScore = result.status === 'passing' ? 1 : 0
+      const qualityScore = finiteScore(result.qualityScore)
+      const dimensions = qualityDimensions(result.dimensions)
+      if (qualityScore === undefined || typeof result.qualityQualified !== 'boolean' || dimensions === null) {
+        return { status: 'evaluator_error' }
+      }
       return {
         status: result.status,
         violations: result.violations as number,
-        score: finiteScore(result.score) ?? fallbackScore,
-        weightedScore: finiteScore(result.weightedScore) ?? fallbackScore,
+        qualityScore,
+        qualityQualified: result.qualityQualified,
+        dimensions,
       }
     } catch {
       return { status: 'evaluator_error' }

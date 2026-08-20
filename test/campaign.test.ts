@@ -5,10 +5,59 @@ import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { test } from 'node:test'
 import { promisify } from 'node:util'
-import { runCampaign } from '../src/campaign.js'
-import type { CampaignManifest } from '../src/contracts.js'
+import { aggregateRecords, runCampaign } from '../src/campaign.js'
+import type { CampaignManifest, RunRecord } from '../src/contracts.js'
 
 const execFileAsync = promisify(execFile)
+
+function outcomeRecord(pairId: string, condition: 'baseline' | 'grace', status: RunRecord['status'], qualityScore = 0): RunRecord {
+  const scored = status === 'scored'
+  return {
+    pairId,
+    condition,
+    status,
+    agentError: status === 'agent_error' || status === 'infrastructure_error' ? status : null,
+    targetCommit: 'a'.repeat(40),
+    targetTree: 'b'.repeat(40),
+    candidateDigest: 'sha256:' + 'c'.repeat(64),
+    traceDigest: 'sha256:' + 'd'.repeat(64),
+    model: 'fixture-model',
+    provider: 'fixture-provider',
+    promptTokens: 100,
+    completionTokens: 10,
+    cost: 0.01,
+    functionalGateExitCode: scored || status === 'evaluator_error' ? 0 : null,
+    durationMs: 100,
+    codeQualityScore: scored ? qualityScore : null,
+    qualityQualified: scored ? qualityScore >= 0.7 : null,
+    qualityDimensions: scored ? {
+      architecture: qualityScore,
+      maintainability: qualityScore,
+      clarity: qualityScore,
+      tests: qualityScore,
+      robustness: qualityScore,
+    } : null,
+    violations: scored ? 0 : null,
+  }
+}
+
+test('scores candidate failures as zero and excludes infrastructure failures', () => {
+  const aggregate = aggregateRecords([
+    outcomeRecord('pair-01', 'baseline', 'functional_failed'),
+    outcomeRecord('pair-01', 'grace', 'scored', 0.8),
+    outcomeRecord('pair-02', 'baseline', 'agent_error'),
+    outcomeRecord('pair-02', 'grace', 'infrastructure_error'),
+  ], 100, 7)
+
+  assert.equal(aggregate.baseline.codeQualityMean, 0)
+  assert.equal(aggregate.baseline.validQualityAttempts, 2)
+  assert.equal(aggregate.grace.codeQualityMean, 0.8)
+  assert.equal(aggregate.grace.validQualityAttempts, 1)
+  assert.equal(aggregate.grace.infrastructureErrors, 1)
+  assert.equal(aggregate.functionalPairedAttempts, 1)
+  assert.equal(aggregate.qualityPairedAttempts, 1)
+  assert.equal(aggregate.graceCodeQualityDeltaMean, 0.8)
+})
 
 test('runs paired conditions, gates before scoring, and preserves provenance', async () => {
   const root = await mkdtemp(resolve(tmpdir(), 'ccb-campaign-'))
@@ -22,8 +71,8 @@ test('runs paired conditions, gates before scoring, and preserves provenance', a
   const { stdout: treeOutput } = await execFileAsync('git', ['-C', target, 'rev-parse', 'HEAD^{tree}'])
 
   const manifest: CampaignManifest = {
-    schemaVersion: 1,
-    campaignId: 'fixture-v1',
+    schemaVersion: 2,
+    campaignId: 'fixture-v2',
     target: { checkout: target, repository: 'fixture', commit: commitOutput.trim(), tree: treeOutput.trim(), digest: 'sha256:' + 'd'.repeat(64) },
     task: { id: 'task', prompt: 'Refactor the fixture.' },
     repetitions: 2,
@@ -70,36 +119,45 @@ test('runs paired conditions, gates before scoring, and preserves provenance', a
       return {
         status: 'passing',
         violations: condition === 'grace' ? 0 : 1,
-        score: condition === 'grace' ? 0.8 : 0.2,
-        weightedScore: condition === 'grace' ? 0.8 : 0.2,
+        qualityScore: condition === 'grace' ? 0.8 : 0.2,
+        qualityQualified: condition === 'grace',
+        dimensions: {
+          architecture: condition === 'grace' ? 0.8 : 0.2,
+          maintainability: condition === 'grace' ? 0.8 : 0.2,
+          clarity: condition === 'grace' ? 0.8 : 0.2,
+          tests: condition === 'grace' ? 0.8 : 0.2,
+          robustness: condition === 'grace' ? 0.8 : 0.2,
+        },
       }
     },
   })
 
   assert.equal(result.records.length, 4)
-  assert.equal(result.aggregate.completeScoredPairs, 1)
-  assert.ok(Math.abs((result.aggregate.graceDeltaMedian ?? 0) - 0.6) < 1e-12)
-  assert.equal(result.aggregate.baseline.functionalFailureRate, 0.5)
+  assert.equal(result.aggregate.functionalPairedAttempts, 2)
+  assert.equal(result.aggregate.qualityPairedAttempts, 1)
+  assert.ok(Math.abs((result.aggregate.graceCodeQualityDeltaMean ?? 0) - 0.6) < 1e-12)
+  assert.equal(result.aggregate.baseline.functionalPassAt1, 0.5)
+  assert.equal(result.aggregate.baseline.codeQualityMean, 0.1)
   assert.deepEqual(result.records.map((record) => record.condition), ['baseline', 'grace', 'grace', 'baseline'])
-  assert.equal(result.aggregate.grace.functionalFailureRate, 0)
-  assert.equal(result.records.find((record) => record.pairId === 'pair-02' && record.condition === 'baseline')?.architectureScore, null)
+  assert.equal(result.aggregate.grace.functionalPassAt1, 1)
+  assert.equal(result.aggregate.grace.qualityPassAt1, 1)
+  assert.equal(result.records.find((record) => record.pairId === 'pair-02' && record.condition === 'baseline')?.codeQualityScore, null)
   assert.equal(result.records.find((record) => record.pairId === 'pair-02' && record.condition === 'baseline')?.status, 'functional_failed')
   assert.equal(result.records.find((record) => record.pairId === 'pair-02' && record.condition === 'grace')?.status, 'evaluator_error')
   assert.deepEqual(evaluated, ['pair-01-baseline', 'pair-01-grace', 'pair-02-grace'])
   assert.match(result.records[0]?.candidateDigest ?? '', /^sha256:[0-9a-f]{64}$/)
 
   const aggregate = JSON.parse(await readFile(resolve(output, 'aggregate.json'), 'utf8')) as Record<string, unknown>
-  assert.equal(aggregate.campaignId, 'fixture-v1')
+  assert.equal(aggregate.campaignId, 'fixture-v2')
   assert.match(String(aggregate.manifestDigest), /^sha256:[0-9a-f]{64}$/)
 })
-
-test('records rejected agent runs and continues the pair', async () => {
+test('records infrastructure failures and continues the pair', async () => {
   const root = await mkdtemp(resolve(tmpdir(), 'ccb-agent-error-'))
   const target = resolve(root, 'target')
   await mkdir(target)
   const manifest: CampaignManifest = {
-    schemaVersion: 1,
-    campaignId: 'agent-error-v1',
+    schemaVersion: 2,
+    campaignId: 'agent-error-v2',
     target: { checkout: target, repository: 'fixture', commit: 'a'.repeat(40), tree: 'b'.repeat(40), digest: 'sha256:' + 'c'.repeat(64) },
     task: { id: 'task', prompt: 'Refactor.' },
     repetitions: 1,
@@ -127,6 +185,8 @@ test('records rejected agent runs and continues the pair', async () => {
     evaluate: async () => { throw new Error('evaluator must not run') },
   })
 
-  assert.deepEqual(result.records.map((record) => record.status), ['agent_error', 'agent_error'])
+  assert.deepEqual(result.records.map((record) => record.status), ['infrastructure_error', 'infrastructure_error'])
   assert.deepEqual(result.records.map((record) => record.agentError), ['Grace unavailable', 'Grace unavailable'])
+  assert.equal(result.aggregate.baseline.codeQualityMean, null)
+  assert.equal(result.aggregate.grace.codeQualityMean, null)
 })

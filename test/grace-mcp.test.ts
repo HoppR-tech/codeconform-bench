@@ -5,7 +5,7 @@ import { test } from 'node:test'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
-import { connectGraceMcp } from '../src/grace-mcp.js'
+import { connectGraceMcp, GraceToolInputError } from '../src/grace-mcp.js'
 
 test('connects with bearer auth and terminates its live MCP session', async () => {
   const app = createMcpExpressApp()
@@ -63,6 +63,7 @@ test('connects with bearer auth and terminates its live MCP session', async () =
     assert.deepEqual(grace.definitions.map((tool) => tool.function.name), ['grace_check'])
     assert.match(await grace.execute('grace_check', '{}'), /architecture checked/)
     await assert.rejects(() => grace.execute('grace_check', '[]'), /must be a JSON object/)
+    await assert.rejects(() => grace.execute('grace_check', 'invalid'), GraceToolInputError)
     await grace.close()
     assert.equal(terminated, true)
     assert.equal(transports.size, 0)

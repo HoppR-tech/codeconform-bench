@@ -7,11 +7,11 @@ import { sha256 } from '../src/digest.js'
 import { ProcessEvaluator } from '../src/process-evaluator.js'
 
 
-test('verifies the rule-pack digest and returns only aggregate scores', async () => {
+test('verifies digests and returns only multidimensional aggregate scores', async () => {
   const root = await mkdtemp(resolve(tmpdir(), 'ccb-evaluator-'))
   const runner = resolve(root, 'evaluator.mjs')
   const rulePack = resolve(root, 'rules.cjs')
-  const runnerContent = "import { writeFile } from 'node:fs/promises'; console.log('private diagnostics'); await writeFile(process.argv[4], JSON.stringify({ status: 'passing', violations: 0, score: 1, weightedScore: 1 }));\n"
+  const runnerContent = "import { writeFile } from 'node:fs/promises'; console.log('private diagnostics'); await writeFile(process.argv[4], JSON.stringify({ status: 'passing', violations: 0, qualityScore: 1, qualityQualified: true, dimensions: { architecture: 1, maintainability: 1, clarity: 1, tests: 1, robustness: 1 } }));\n"
   await writeFile(rulePack, 'module.exports = {};\n')
   await writeFile(runner, runnerContent)
   const candidate = resolve(root, 'candidate')
@@ -21,20 +21,21 @@ test('verifies the rule-pack digest and returns only aggregate scores', async ()
   const evaluator = new ProcessEvaluator({
     command: [process.execPath, '{runner}', '{candidate}', '{rulePack}', '{result}'],
     runner: { path: runner, digest: sha256(runnerContent) },
-    rulePack: { id: 'ohmyform-v1', version: '1', digest, path: rulePack },
+    rulePack: { id: 'ohmyform-v2', version: '2', digest, path: rulePack },
   }, resolve(root, 'results'))
 
   assert.deepEqual(await evaluator.evaluate(candidate, 'pair-01', 'baseline'), {
     status: 'passing',
     violations: 0,
-    score: 1,
-    weightedScore: 1,
+    qualityScore: 1,
+    qualityQualified: true,
+    dimensions: { architecture: 1, maintainability: 1, clarity: 1, tests: 1, robustness: 1 },
   })
 
   const rejected = new ProcessEvaluator({
     command: [process.execPath, '{runner}', '{candidate}', '{rulePack}', '{result}'],
     runner: { path: runner, digest: sha256(runnerContent) },
-    rulePack: { id: 'ohmyform-v1', version: '1', digest: 'sha256:' + '0'.repeat(64), path: rulePack },
+    rulePack: { id: 'ohmyform-v2', version: '2', digest: 'sha256:' + '0'.repeat(64), path: rulePack },
   }, resolve(root, 'rejected'))
   assert.deepEqual(await rejected.evaluate(candidate, 'pair-01', 'baseline'), { status: 'evaluator_error' })
 })

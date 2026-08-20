@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { ConnectionError, RequestTimeoutError } from '@openrouter/sdk/models/errors'
 import type { CandidateTools } from '../src/candidate-tools.js'
-import type { GraceTools } from '../src/grace-mcp.js'
+import { GraceToolInputError, type GraceTools } from '../src/grace-mcp.js'
 import { OpenRouterAgent } from '../src/openrouter-agent.js'
 
 test('stops before feeding oversized tool output back to the model', async () => {
@@ -44,6 +44,82 @@ test('stops before feeding oversized tool output back to the model', async () =>
   assert.ok(requestedMaxTokens > 0 && requestedMaxTokens < 10_000)
   assert.deepEqual(requestMessages[1], { role: 'user', content: 'Refactor.' })
   assert.match(JSON.stringify(result.trace), /agent tool-output budget exceeded/)
+})
+
+test('classifies Grace transport failures as infrastructure errors', async () => {
+  const agent = new OpenRouterAgent('fixture-key', {
+    id: 'fixture-model',
+    providerOrder: ['fixture-provider'],
+    allowFallbacks: false,
+    maxTokens: 10_000,
+  }, { maxSteps: 2, maxCostUsd: 30, maxTotalTokens: 10_000, maxToolOutputBytes: 1_024 })
+  let requests = 0
+  Object.defineProperty(agent, 'client', { value: {
+    chat: {
+      send: async () => {
+        requests += 1
+        return {
+          model: 'fixture-model',
+          choices: [{ message: { role: 'assistant', content: null, toolCalls: [{ id: 'call-1', type: 'function', function: { name: 'grace_quality', arguments: '{}' } }] } }],
+          usage: { promptTokens: 10, completionTokens: 5, cost: 0.01 },
+        }
+      },
+    },
+  } })
+  const grace = {
+    definitions: [{ type: 'function', function: { name: 'grace_quality', parameters: { type: 'object' } } }],
+    execute: async () => { throw new Error('MCP disconnected') },
+  } as unknown as GraceTools
+
+  const result = await agent.run({
+    condition: 'grace',
+    pairId: 'pair-01',
+    workspace: '/tmp/candidate',
+    task: { id: 'fixture', prompt: 'Refactor.' },
+  }, { execute: async () => '' } as unknown as CandidateTools, grace)
+
+  assert.equal(result.status, 'infrastructure_error')
+  assert.equal(result.error, 'MCP disconnected')
+  assert.equal(requests, 1)
+})
+
+test('returns invalid Grace tool arguments to the model', async () => {
+  const agent = new OpenRouterAgent('fixture-key', {
+    id: 'fixture-model',
+    providerOrder: ['fixture-provider'],
+    allowFallbacks: false,
+    maxTokens: 10_000,
+  }, { maxSteps: 2, maxCostUsd: 30, maxTotalTokens: 10_000, maxToolOutputBytes: 1_024 })
+  let requests = 0
+  Object.defineProperty(agent, 'client', { value: {
+    chat: {
+      send: async () => {
+        requests += 1
+        return {
+          model: 'fixture-model',
+          choices: [{ message: requests === 1
+            ? { role: 'assistant', content: null, toolCalls: [{ id: 'call-1', type: 'function', function: { name: 'grace_quality', arguments: 'invalid' } }] }
+            : { role: 'assistant', content: 'done' } }],
+          usage: { promptTokens: 10, completionTokens: 5, cost: 0.01 },
+        }
+      },
+    },
+  } })
+  const grace = {
+    definitions: [{ type: 'function', function: { name: 'grace_quality', parameters: { type: 'object' } } }],
+    execute: async () => { throw new GraceToolInputError('Grace MCP tool arguments must be valid JSON') },
+  } as unknown as GraceTools
+
+  const result = await agent.run({
+    condition: 'grace',
+    pairId: 'pair-01',
+    workspace: '/tmp/candidate',
+    task: { id: 'fixture', prompt: 'Refactor.' },
+  }, { execute: async () => '' } as unknown as CandidateTools, grace)
+
+  assert.equal(result.status, 'completed')
+  assert.equal(requests, 2)
+  assert.match(JSON.stringify(result.trace), /must be valid JSON/)
 })
 
 test('retries transient responses and honors Retry-After within one global budget', async () => {
@@ -121,7 +197,7 @@ test('does not retry when Retry-After consumes its entire wait budget', async ()
     task: { id: 'fixture', prompt: 'Refactor.' },
   }, { execute: async () => '' } as unknown as CandidateTools)
 
-  assert.equal(result.status, 'agent_error')
+  assert.equal(result.status, 'infrastructure_error')
   assert.equal(result.error, 'rate limited')
   assert.equal(requests, 1)
   assert.deepEqual(waits, [])
@@ -195,7 +271,7 @@ test('does not retry when a timer resumes after the retry deadline', async () =>
     task: { id: 'fixture', prompt: 'Refactor.' },
   }, { execute: async () => '' } as unknown as CandidateTools)
 
-  assert.equal(result.status, 'agent_error')
+  assert.equal(result.status, 'infrastructure_error')
   assert.equal(result.error, 'provider unavailable')
   assert.equal(requests, 1)
 })
@@ -229,7 +305,7 @@ test('does not retry after a request consumes the retry window', async () => {
     task: { id: 'fixture', prompt: 'Refactor.' },
   }, { execute: async () => '' } as unknown as CandidateTools)
 
-  assert.equal(result.status, 'agent_error')
+  assert.equal(result.status, 'infrastructure_error')
   assert.equal(result.error, 'request timed out')
   assert.equal(requests, 1)
   assert.deepEqual(waits, [])
@@ -299,7 +375,7 @@ test('retains charged usage when OpenRouter returns no completion choice', async
     task: { id: 'fixture', prompt: 'Refactor.' },
   }, { execute: async () => '' } as unknown as CandidateTools)
 
-  assert.equal(result.status, 'agent_error')
+  assert.equal(result.status, 'infrastructure_error')
   assert.equal(result.error, 'OpenRouter returned no completion choice')
   assert.equal(result.cost, 0.25)
 })
@@ -328,7 +404,7 @@ test('fails closed when OpenRouter omits response cost', async () => {
     task: { id: 'fixture', prompt: 'Refactor.' },
   }, { execute: async () => '' } as unknown as CandidateTools)
 
-  assert.equal(result.status, 'agent_error')
+  assert.equal(result.status, 'infrastructure_error')
   assert.match(result.error ?? '', /invalid token or cost usage/)
 })
 

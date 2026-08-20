@@ -1,5 +1,9 @@
 export type Condition = 'baseline' | 'grace'
 
+export const QUALITY_DIMENSIONS = ['architecture', 'maintainability', 'clarity', 'tests', 'robustness'] as const
+export type QualityDimension = typeof QUALITY_DIMENSIONS[number]
+export type QualityDimensions = Record<QualityDimension, number>
+
 export interface ReadOnlyMount {
   source: string
   target: string
@@ -7,7 +11,7 @@ export interface ReadOnlyMount {
 }
 
 export interface CampaignManifest {
-  schemaVersion: 1
+  schemaVersion: 2
   campaignId: string
   target: {
     checkout: string
@@ -75,7 +79,7 @@ export interface AgentInput {
 }
 
 export interface AgentOutput {
-  status: 'completed' | 'agent_error'
+  status: 'completed' | 'agent_error' | 'infrastructure_error'
   error: string | null
   model: string
   provider: string | null
@@ -96,14 +100,15 @@ export interface CommandResult {
 export interface EvaluatorResult {
   status: 'passing' | 'failing' | 'evaluator_error'
   violations?: number
-  score?: number
-  weightedScore?: number
+  qualityScore?: number
+  qualityQualified?: boolean
+  dimensions?: QualityDimensions
 }
 
 export interface RunRecord {
   pairId: string
   condition: Condition
-  status: 'scored' | 'functional_failed' | 'agent_error' | 'evaluator_error'
+  status: 'scored' | 'functional_failed' | 'agent_error' | 'infrastructure_error' | 'evaluator_error'
   agentError: string | null
   targetCommit: string
   targetTree: string
@@ -116,8 +121,9 @@ export interface RunRecord {
   cost: number | null
   functionalGateExitCode: number | null
   durationMs: number
-  architectureScore: number | null
-  weightedArchitectureScore: number | null
+  codeQualityScore: number | null
+  qualityQualified: boolean | null
+  qualityDimensions: QualityDimensions | null
   violations: number | null
 }
 
@@ -131,26 +137,34 @@ export interface CampaignPorts {
 
 export interface ConditionSummary {
   total: number
-  scored: number
+  validFunctionalAttempts: number
+  validQualityAttempts: number
+  functionalPasses: number
+  qualityPasses: number
   functionalFailures: number
   agentErrors: number
+  infrastructureErrors: number
   evaluatorErrors: number
-  functionalFailureRate: number | null
-  architectureMedian: number | null
-  weightedArchitectureMedian: number | null
+  functionalPassAt1: number | null
+  qualityPassAt1: number | null
+  codeQualityMean: number | null
+  dimensionMeans: QualityDimensions | null
   promptTokens: number
   completionTokens: number
   cost: number | null
-  durationMedianMs: number | null
+  durationMeanMs: number | null
 }
 
 export interface CampaignAggregate {
   baseline: ConditionSummary
   grace: ConditionSummary
-  completeScoredPairs: number
-  graceDeltaMedian: number | null
-  graceDeltaBootstrap95: [number, number] | null
-  qualityGainPerAdditional1000TokensMedian: number | null
+  functionalPairedAttempts: number
+  qualityPairedAttempts: number
+  graceFunctionalPassAt1Delta: number | null
+  graceQualityPassAt1Delta: number | null
+  graceCodeQualityDeltaMean: number | null
+  graceCodeQualityBootstrap95: [number, number] | null
+  qualityGainPerAdditional1000TokensMean: number | null
   bootstrapSamples: number
   seed: number
 }
