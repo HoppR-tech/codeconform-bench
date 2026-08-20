@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "campaignId": "ohmyform-submission-start-v1-gpt-5.6-sol",
+  "target": {
+    "checkout": "../.bench/targets/ccb-ohmyform",
+    "repository": "https://github.com/HoppR-tech/ccb-ohmyform.git",
+    "commit": "0f602c646447cb8efc0ad346a2bf4869c30d2360",
+    "tree": "48f9f6659f2e775c3b28bc51402e785f9e42553b",
+    "digest": "sha256:67d029e566ce918a0b4bf738b3535b8d2fc3f62e5ad6cea20040b20206d923ee"
+  },
+  "task": {
+    "id": "submission-start-clean-architecture",
+    "prompt": "Refactor only the API submission-start vertical slice into clean architecture. Preserve the public GraphQL startSubmission contract and its current validation, token, cache, anonymization, persistence, and progress-result behavior. Introduce a domain-side submission persistence port, an application use case, a TypeORM infrastructure adapter, and a GraphQL interface adapter; wire them at the NestJS composition root. Migrate the existing caller and remove the superseded path. Do not refactor unrelated submission features."
+  },
+  "repetitions": 5,
+  "order": ["baseline", "grace"],
+  "model": {
+    "id": "openai/gpt-5.6-sol",
+    "providerOrder": ["openai"],
+    "allowFallbacks": false,
+    "reasoningEffort": "high",
+    "maxTokens": 32000
+  },
+  "agent": {
+    "maxSteps": 80,
+    "maxCostUsd": 30,
+    "maxTotalTokens": 5000000,
+    "maxToolOutputBytes": 524288
+  },
+  "commandExecutor": {
+    "image": "node@sha256:cd59a61258b82b86c1ff0ead50c8a689f6c3483c5ed21036e11ee741add419eb",
+    "commands": {
+      "api-check": ["yarn", "--cwd", "api", "test", "--runInBand"]
+    },
+    "readOnlyMounts": [
+      {
+        "source": "../.bench/dependencies/ohmyform-v1-api/node_modules",
+        "target": "/workspace/api/node_modules",
+        "digest": "sha256:95062d19c65ef195bd8d07a7b60c96e15ccf90cccc49b2f0b71500c6aca5e6eb"
+      }
+    ]
+  },
+  "functionalGate": {
+    "command": ["node", "/opt/ccb/probe/probe.cjs"],
+    "readOnlyMounts": [
+      {
+        "source": "../gates/ohmyform-v1",
+        "target": "/opt/ccb/probe",
+        "digest": "sha256:d537754ee5e76860e896ead738c431b98d7ab29980e743cc4c076944e2fb98cc"
+      }
+    ]
+  },
+  "evaluator": {
+    "runner": {
+      "path": "../.bench/evaluator/runners/typescript/evaluate.mjs",
+      "digest": "sha256:e2aa493382b469203d0edbe4cef4111849130e47571e517b656a272af4a9e279"
+    },
+    "command": ["node", "{runner}", "--candidate", "{candidate}", "--rule-config", "{rulePack}", "--result", "{result}"],
+    "rulePack": {
+      "id": "ohmyform-v1",
+      "version": "1",
+      "digest": "sha256:4380fa8702683c569db8a7bc1ea2e667edff1fb9946fb84e81937cc9acb22de2",
+      "path": "../.bench/evaluator/rule-packs/typescript/ohmyform-v1/dependency-cruiser.config.cjs"
+    }
+  },
+  "grace": {
+    "mcpUrl": "https://grace-mcp.hoppr.tech/mcp/ccb-benchmark-8169",
+    "tokenEnv": "GRACE_MCP_TOKEN"
+  },
+  "outputDirectory": "../.bench/results/ohmyform-submission-start-v1-gpt-5.6-sol",
+  "bootstrapSamples": 10000,
+  "seed": 20260818
+}
