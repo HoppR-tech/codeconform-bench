@@ -46,6 +46,110 @@ function citation(location: EvidenceLocation): string {
   return `${location.path}:${range}${context.length === 0 ? '' : ` — ${context}`}`
 }
 
+function agentDiagnostic(record: RunRecord): string {
+  const execution = record.agentExecution
+  const counters = `${execution.stepsUsed}/${execution.maxSteps} steps · ${execution.requestAttempts} requests · ${execution.toolCalls} tools`
+  return execution.failure === null
+    ? counters
+    : `${counters} · ${execution.failure.code}: ${boundedSummaryText(execution.failure.reason, 120)}`
+}
+
+function recoveryLine(record: RunRecord): string {
+  const recovery = record.candidateRecovery
+  if (recovery === null) return 'Candidate recovery: not retained for a scored attempt.'
+  if (recovery.status === 'unavailable') {
+    return `Candidate recovery: unavailable (\`${recovery.code}\`) — ${cell(recovery.reason)}.`
+  }
+  const incomplete = !recovery.complete
+    || recovery.redactions > 0
+    || recovery.omittedUnsafePathCount > 0
+    || recovery.omittedCount > 0
+  const qualifier = incomplete ? 'sanitized/incomplete' : 'bounded artifact'
+  const href = encodeURI(recovery.path).replaceAll('(', '%28').replaceAll(')', '%29')
+  return `Candidate recovery: [${cell(recovery.path)}](${href}) (${qualifier}; ${recovery.operationCount} operations, ${recovery.omittedCount} omitted, ${recovery.redactions} redactions, ${recovery.omittedUnsafePathCount} unsafe paths omitted).`
+}
+
+function renderAttemptDiagnostics(record: RunRecord, recentLimit = 8): string[] {
+  const execution = record.agentExecution
+  const failure = execution.failure
+  const gateEvidence = record.functionalGate?.evidence ?? null
+  const recent = execution.recentToolCalls.slice(-recentLimit)
+  return [
+    `- Agent execution: ${execution.stepsUsed}/${execution.maxSteps} model steps; ${execution.requestAttempts} provider request attempts; ${execution.toolCalls} tool calls${execution.toolUsageTruncated ? '; tool aggregates truncated' : ''}.`,
+    `- Agent failure: ${failure === null ? 'none' : `\`${failure.code}\` — ${cell(failure.reason)}`}`,
+    `- ${recoveryLine(record)}`,
+    '',
+    ...(execution.toolUsage.length === 0
+      ? ['Tool usage: none.', '']
+      : [
+        '| Tool | Calls | Errors |',
+        '| --- | ---: | ---: |',
+        ...execution.toolUsage.map((tool) => `| ${cell(tool.name)} | ${tool.count} | ${tool.errorCount} |`),
+        '',
+      ]),
+    ...(recent.length === 0
+      ? ['Recent tool activity: none.', '']
+      : [
+        `Recent tool activity (${recent.length}/${execution.recentToolCalls.length} retained):`,
+        '',
+        '| Step | Tool | Outcome |',
+        '| ---: | --- | --- |',
+        ...recent.map((activity) => `| ${activity.step} | ${cell(activity.name)} | ${activity.outcome} |`),
+        '',
+      ]),
+    ...(gateEvidence === null
+      ? []
+      : [
+        `Functional mismatches (${gateEvidence.retainedMismatchCount}/${gateEvidence.totalMismatchCount} shown${gateEvidence.truncated ? '; truncated' : ''}; ${gateEvidence.redactions} redactions; ${gateEvidence.valuesTruncated} values truncated):`,
+        '',
+        '| JSON pointer | Kind | Expected | Actual |',
+        '| --- | --- | --- | --- |',
+        ...gateEvidence.mismatches.map((mismatch) =>
+          `| ${cell(mismatch.path)} | ${mismatch.kind} | ${cell(mismatch.expected)} | ${cell(mismatch.actual)} |`
+        ),
+        '',
+      ]),
+  ]
+}
+
+function renderSummaryAttemptDiagnostics(record: RunRecord): string[] {
+  const execution = record.agentExecution
+  const failure = execution.failure
+  const recent = execution.recentToolCalls.slice(-3)
+  const gateEvidence = record.functionalGate?.evidence ?? null
+  const tools = execution.toolUsage.length === 0
+    ? 'none'
+    : execution.toolUsage.map((tool) => `${cell(tool.name)}×${tool.count}/${tool.errorCount} errors`).join(', ')
+  const activities = recent.length === 0
+    ? 'none'
+    : recent.map((activity) => `${activity.step}:${cell(activity.name)}/${activity.outcome}`).join(', ')
+  if (record.status === 'scored') {
+    return [
+      `- Agent: ${execution.stepsUsed}/${execution.maxSteps} steps; ${execution.requestAttempts} requests; ${execution.toolCalls} tools [${tools}]; recent ${recent.length}/${execution.recentToolCalls.length} [${activities}]; recovery discarded (scored).`,
+      '',
+    ]
+  }
+  return [
+    `- Agent execution: ${execution.stepsUsed}/${execution.maxSteps} steps; ${execution.requestAttempts} requests; ${execution.toolCalls} tool calls${execution.toolUsageTruncated ? '; aggregates truncated' : ''}${failure === null ? '' : `; \`${failure.code}\` — ${cell(failure.reason)}`}.`,
+    `- Tool usage: ${tools}.`,
+    `- Recent tool activity (${recent.length}/${execution.recentToolCalls.length} retained in summary): ${activities}.`,
+    `- ${recoveryLine(record)}`,
+    '',
+    ...(gateEvidence === null
+      ? []
+      : [
+        `Functional mismatches (${gateEvidence.retainedMismatchCount}/${gateEvidence.totalMismatchCount} shown${gateEvidence.truncated ? '; truncated' : ''}; ${gateEvidence.redactions} redactions; ${gateEvidence.valuesTruncated} values truncated):`,
+        '',
+        '| JSON pointer | Kind | Expected | Actual |',
+        '| --- | --- | --- | --- |',
+        ...gateEvidence.mismatches.map((mismatch) =>
+          `| ${cell(mismatch.path)} | ${mismatch.kind} | ${cell(mismatch.expected)} | ${cell(mismatch.actual)} |`
+        ),
+        '',
+      ]),
+  ]
+}
+
 function checkSources(check: QualityCheckEvidence): string {
   const sources = [
     ...check.locations.map(citation),
@@ -126,18 +230,17 @@ function renderRunEvidence(record: RunRecord): string[] {
     return [
       heading,
       '',
+      ...renderAttemptDiagnostics(record),
       diagnostic
         ? `Evaluation failed at \`${diagnostic.phase}\` with \`${diagnostic.code}\`: ${cell(diagnostic.reason)}${diagnostic.schemaPath ? ` (schema path \`${cell(diagnostic.schemaPath)}\`)` : ''}.`
         : `Scoring evidence: **not evaluated** (run status: \`${record.status}\`).`,
-      ...(record.status === 'evaluator_error' || record.functionalGate?.code === 'candidate_mutated'
-        ? ['', `Offline recovery input: \`failures/${cell(record.pairId)}-${record.condition}-candidate-recovery.json\`.`]
-        : []),
       '',
     ]
   }
   return [
     heading,
     '',
+    ...renderAttemptDiagnostics(record),
     `- Evidence schema: v${evidence.schemaVersion}`,
     `- Overall score: ${value(evidence.overall.earned)} / ${value(evidence.overall.max)} = **${percentage(evidence.overall.score)}**`,
     `- Qualification: ${evidence.overall.qualified ? 'yes' : 'no'} (overall threshold ${percentage(evidence.overall.qualifiedThreshold)} plus every dimension minimum and mandatory check)`,
@@ -235,7 +338,7 @@ export function renderCampaignReport(
     '',
     '## Run details',
     '',
-    '| Pair | Condition | Status | Model | Provider | Tokens | Cost | Functional diagnostic | Evaluator diagnostic | Quality-qualified | Code quality | Architecture | Maintainability | Clarity | Tests | Robustness | Violations | Duration ms | Error |',
+    '| Pair | Condition | Status | Model | Provider | Tokens | Cost | Functional diagnostic | Evaluator diagnostic | Quality-qualified | Code quality | Architecture | Maintainability | Clarity | Tests | Robustness | Violations | Duration ms | Agent diagnostic |',
     '| --- | --- | --- | --- | --- | ---: | ---: | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |',
     ...records.map((record) => {
       const dimensions = record.qualityDimensions
@@ -243,12 +346,12 @@ export function renderCampaignReport(
       const gateText = gate === null ? '—' : `${gate.passed ? 'pass' : 'fail'} · ${gate.phase}/${gate.code}${gate.detail ? ` · ${boundedSummaryText(gate.detail, 120)}` : ''}`
       const diagnostic = record.evaluatorFailure
       const evaluatorText = diagnostic === null ? '—' : `${diagnostic.phase}/${diagnostic.code}${diagnostic.schemaPath ? ` · ${diagnostic.schemaPath}` : ''} · ${boundedSummaryText(diagnostic.reason, 120)}`
-      return `| ${cell(record.pairId)} | ${record.condition} | ${record.status} | ${cell(record.model)} | ${cell(record.provider)} | ${record.promptTokens + record.completionTokens} | ${cost(record.cost)} | ${cell(gateText)} | ${cell(evaluatorText)} | ${record.qualityQualified === null ? '—' : record.qualityQualified ? 'yes' : 'no'} | ${percentage(record.codeQualityScore)} | ${percentage(dimensions?.architecture ?? null)} | ${percentage(dimensions?.maintainability ?? null)} | ${percentage(dimensions?.clarity ?? null)} | ${percentage(dimensions?.tests ?? null)} | ${percentage(dimensions?.robustness ?? null)} | ${value(record.violations)} | ${record.durationMs} | ${cell(record.agentError)} |`
+      return `| ${cell(record.pairId)} | ${record.condition} | ${record.status} | ${cell(record.model)} | ${cell(record.provider)} | ${record.promptTokens + record.completionTokens} | ${cost(record.cost)} | ${cell(gateText)} | ${cell(evaluatorText)} | ${record.qualityQualified === null ? '—' : record.qualityQualified ? 'yes' : 'no'} | ${percentage(record.codeQualityScore)} | ${percentage(dimensions?.architecture ?? null)} | ${percentage(dimensions?.maintainability ?? null)} | ${percentage(dimensions?.clarity ?? null)} | ${percentage(dimensions?.tests ?? null)} | ${percentage(dimensions?.robustness ?? null)} | ${value(record.violations)} | ${record.durationMs} | ${cell(agentDiagnostic(record))} |`
     }),
     '',
     '## Raw scoring evidence',
     '',
-    'Evidence is generated only after the agent finishes. Each scored per-run JSON contains complete redacted scored-source content, original source digests, full score-determining paths, and the normalized dependency graph. Evaluator failures retain bounded sanitized process/result diagnostics plus a redacted candidate recovery patch under `evaluator/` and `failures/`; model traces are not part of published evidence.',
+    'Evidence is generated only after the agent finishes. Reports retain bounded agent counters, tool-name activity, functional mismatches, evaluator diagnostics, and sanitized candidate recovery references. They never include tool arguments, tool outputs, or complete model traces; `runs/*-trace.json` remains local.',
     '',
     ...records.flatMap(renderRunEvidence),
   ]
@@ -307,6 +410,7 @@ function renderSummaryEvidence(record: RunRecord): string[] {
     return [
       heading,
       '',
+      ...renderSummaryAttemptDiagnostics(record),
       diagnostic
         ? `Evaluation failed: \`${diagnostic.phase}/${diagnostic.code}\` — ${cell(diagnostic.reason)}${diagnostic.schemaPath ? ` (schema path \`${cell(diagnostic.schemaPath)}\`)` : ''}.`
         : `Scoring evidence: **not evaluated** (run status: \`${record.status}\`).`,
@@ -316,6 +420,7 @@ function renderSummaryEvidence(record: RunRecord): string[] {
   return [
     heading,
     '',
+    ...renderSummaryAttemptDiagnostics(record),
     `Overall: ${value(evidence.overall.earned)} / ${value(evidence.overall.max)} = **${percentage(evidence.overall.score)}**; threshold ${percentage(evidence.overall.qualifiedThreshold)}; qualified ${evidence.overall.qualified ? 'yes' : 'no'}; violations ${value(record.violations)}.`,
     `Canonical evidence: \`runs/${cell(record.pairId)}-${record.condition}.json\``,
     '',
@@ -351,7 +456,7 @@ export function renderCampaignSummary(
     `- Manifest: \`${cell(manifestDigest)}\``,
     '- Full check/source/graph report: `report.md` in the workflow artifact',
     '- Canonical replay evidence: `runs/pair-*.json` in the workflow artifact',
-    '- Evaluator failure diagnostics and offline recovery inputs: `evaluator/` and `failures/`',
+    '- Bounded evaluator diagnostics and sanitized candidate recovery artifacts: `evaluator/` and `failures/`',
     '',
     '| Condition | Attempts | Scored attempts | Valid quality attempts | Functional pass@1 | Quality-qualified pass@1 | Code quality |',
     '| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
@@ -381,8 +486,9 @@ export function renderCampaignSummary(
     ...records.flatMap(renderSummaryEvidence),
   ]
   const summary = `${lines.join('\n')}\n`
-  if (Buffer.byteLength(summary) > MAX_JOB_SUMMARY_BYTES) {
-    throw new Error('job summary exceeded its deterministic size limit')
+  const summaryBytes = Buffer.byteLength(summary)
+  if (summaryBytes > MAX_JOB_SUMMARY_BYTES) {
+    throw new Error(`job summary exceeded its deterministic size limit: ${summaryBytes} > ${MAX_JOB_SUMMARY_BYTES} bytes`)
   }
   return summary
 }

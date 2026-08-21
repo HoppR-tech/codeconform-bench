@@ -21,7 +21,7 @@ test('candidate recovery patch is bounded, redacted, candidate-relative, and rep
   await writeFile(resolve(candidate, 'src/added.ts'), 'export const added = true\n')
   await rm(resolve(candidate, 'src/deleted.ts'))
   const output = resolve(root, 'candidate-recovery.json')
-  await writeCandidateRecoveryArtifact({
+  const metadata = await writeCandidateRecoveryArtifact({
     baseRoot: base,
     candidateRoot: candidate,
     outputPath: output,
@@ -47,4 +47,11 @@ test('candidate recovery patch is bounded, redacted, candidate-relative, and rep
   assert.match(text, /\[REDACTED\]/)
   assert.match(text, /\[REDACTED_PATH\]/)
   assert.ok(Buffer.byteLength(text) < 2.1 * 1024 * 1024)
+  assert.deepEqual(metadata, {
+    complete: false,
+    redactions: artifact.redactions,
+    omittedUnsafePathCount: 0,
+    operationCount: 3,
+    omittedCount: 1,
+  })
 })

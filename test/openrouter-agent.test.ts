@@ -39,7 +39,10 @@ test('stops before feeding oversized tool output back to the model', async () =>
   }, tools)
 
   assert.equal(result.status, 'agent_error')
-  assert.equal(result.error, 'agent tool-output budget exceeded')
+  assert.equal(result.execution.failure?.reason, 'agent tool-output budget exceeded')
+  assert.equal(result.execution.failure?.code, 'tool_output_budget_exceeded')
+  assert.deepEqual(result.execution.toolUsage, [{ name: 'read_file', count: 1, errorCount: 0 }])
+  assert.deepEqual(result.execution.recentToolCalls, [{ step: 1, name: 'read_file', outcome: 'ok' }])
   assert.equal(requests, 1)
   assert.ok(requestedMaxTokens > 0 && requestedMaxTokens < 10_000)
   assert.deepEqual(requestMessages[1], { role: 'user', content: 'Refactor.' })
@@ -79,7 +82,9 @@ test('classifies Grace transport failures as infrastructure errors', async () =>
   }, { execute: async () => '' } as unknown as CandidateTools, grace)
 
   assert.equal(result.status, 'infrastructure_error')
-  assert.equal(result.error, 'MCP disconnected')
+  assert.equal(result.execution.failure?.reason, 'MCP disconnected')
+  assert.equal(result.execution.failure?.code, 'grace_transport_failed')
+  assert.deepEqual(result.execution.recentToolCalls, [{ step: 1, name: 'grace_quality', outcome: 'execution_error' }])
   assert.equal(requests, 1)
 })
 
@@ -120,6 +125,9 @@ test('returns invalid Grace tool arguments to the model', async () => {
   assert.equal(result.status, 'completed')
   assert.equal(requests, 2)
   assert.match(JSON.stringify(result.trace), /must be valid JSON/)
+  assert.equal(result.execution.failure, null)
+  assert.deepEqual(result.execution.toolUsage, [{ name: 'grace_quality', count: 1, errorCount: 1 }])
+  assert.deepEqual(result.execution.recentToolCalls, [{ step: 1, name: 'grace_quality', outcome: 'input_error' }])
 })
 
 test('retries transient responses and honors Retry-After within one global budget', async () => {
@@ -167,6 +175,8 @@ test('retries transient responses and honors Retry-After within one global budge
   assert.equal(result.status, 'completed')
   assert.equal(requests, 4)
   assert.deepEqual(waits, [1_000, 2_000, 2_000])
+  assert.equal(result.execution.stepsUsed, 1)
+  assert.equal(result.execution.requestAttempts, 4)
   assert.deepEqual(requestOptions, { retries: { strategy: 'none' }, timeoutMs: 115_000 })
 })
 
@@ -198,7 +208,10 @@ test('does not retry when Retry-After consumes its entire wait budget', async ()
   }, { execute: async () => '' } as unknown as CandidateTools)
 
   assert.equal(result.status, 'infrastructure_error')
-  assert.equal(result.error, 'rate limited')
+  assert.equal(result.execution.failure?.code, 'provider_transport_failed')
+  assert.equal(result.execution.stepsUsed, 1)
+  assert.equal(result.execution.requestAttempts, 1)
+  assert.equal(result.execution.failure?.reason, 'rate limited')
   assert.equal(requests, 1)
   assert.deepEqual(waits, [])
 })
@@ -272,7 +285,7 @@ test('does not retry when a timer resumes after the retry deadline', async () =>
   }, { execute: async () => '' } as unknown as CandidateTools)
 
   assert.equal(result.status, 'infrastructure_error')
-  assert.equal(result.error, 'provider unavailable')
+  assert.equal(result.execution.failure?.reason, 'provider unavailable')
   assert.equal(requests, 1)
 })
 
@@ -306,7 +319,7 @@ test('does not retry after a request consumes the retry window', async () => {
   }, { execute: async () => '' } as unknown as CandidateTools)
 
   assert.equal(result.status, 'infrastructure_error')
-  assert.equal(result.error, 'request timed out')
+  assert.equal(result.execution.failure?.reason, 'request timed out')
   assert.equal(requests, 1)
   assert.deepEqual(waits, [])
 })
@@ -345,7 +358,8 @@ test('allows the ceiling and stops after cumulative response cost exceeds it', a
   }, { execute: async () => { toolCalls += 1; return '' } } as unknown as CandidateTools)
 
   assert.equal(result.status, 'agent_error')
-  assert.equal(result.error, 'agent cost budget exceeded')
+  assert.equal(result.execution.failure?.reason, 'agent cost budget exceeded')
+  assert.equal(result.execution.failure?.code, 'cost_budget_exceeded')
   assert.equal(result.cost, 0.31)
   assert.equal(requests, 3)
   assert.equal(toolCalls, 2)
@@ -376,7 +390,8 @@ test('retains charged usage when OpenRouter returns no completion choice', async
   }, { execute: async () => '' } as unknown as CandidateTools)
 
   assert.equal(result.status, 'infrastructure_error')
-  assert.equal(result.error, 'OpenRouter returned no completion choice')
+  assert.equal(result.execution.failure?.reason, 'OpenRouter returned no completion choice')
+  assert.equal(result.execution.failure?.code, 'provider_response_invalid')
   assert.equal(result.cost, 0.25)
 })
 
@@ -405,7 +420,8 @@ test('fails closed when OpenRouter omits response cost', async () => {
   }, { execute: async () => '' } as unknown as CandidateTools)
 
   assert.equal(result.status, 'infrastructure_error')
-  assert.match(result.error ?? '', /invalid token or cost usage/)
+  assert.match(result.execution.failure?.reason ?? '', /invalid token or cost usage/)
+  assert.equal(result.execution.failure?.code, 'provider_response_invalid')
 })
 
 test('reports exhaustion of the agent step budget', async () => {
@@ -444,7 +460,11 @@ test('reports exhaustion of the agent step budget', async () => {
 
   assert.equal(requests, 2)
   assert.equal(result.status, 'agent_error')
-  assert.equal(result.error, 'agent step budget exhausted')
+  assert.equal(result.execution.failure?.reason, 'agent step budget exhausted')
+  assert.equal(result.execution.failure?.code, 'step_budget_exhausted')
+  assert.equal(result.execution.stepsUsed, 2)
+  assert.equal(result.execution.requestAttempts, 2)
+  assert.equal(result.execution.toolCalls, 2)
   assert.match(JSON.stringify(result.trace), /agent step budget exhausted/)
 })
 
@@ -525,4 +545,298 @@ test('exposes Grace MCP instructions and tools only to the Grace condition', asy
       function: { name: 'read_file', parameters: { type: 'object', properties: {} } },
     }],
   }), /conflicts with candidate tool: read_file/)
+})
+
+test('injects each closure notice once and does not force a final no-tool turn', async () => {
+  const agent = new OpenRouterAgent('fixture-key', {
+    id: 'fixture-model',
+    providerOrder: ['fixture-provider'],
+    allowFallbacks: false,
+    maxTokens: 10_000,
+  }, { maxSteps: 21, maxCostUsd: 30, maxTotalTokens: 1_000_000, maxToolOutputBytes: 10_000 })
+  let requests = 0
+  Object.defineProperty(agent, 'client', { value: {
+    chat: {
+      send: async () => {
+        requests += 1
+        return {
+          model: 'fixture-model',
+          choices: [{
+            message: {
+              role: 'assistant',
+              content: null,
+              toolCalls: [{ id: `call-${requests}`, type: 'function', function: { name: 'read_file', arguments: '{}' } }],
+            },
+          }],
+          usage: { promptTokens: 10, completionTokens: 5, cost: 0.01 },
+        }
+      },
+    },
+  } })
+
+  const result = await agent.run({
+    condition: 'baseline',
+    pairId: 'pair-01',
+    workspace: '/tmp/candidate',
+    task: { id: 'fixture', prompt: 'Refactor.' },
+  }, { execute: async () => '' } as unknown as CandidateTools)
+
+  const systemMessages = result.trace
+    .filter((message): message is { role: string, content: string } => (
+      typeof message === 'object'
+      && message !== null
+      && 'role' in message
+      && message.role === 'system'
+      && 'content' in message
+      && typeof message.content === 'string'
+    ))
+    .map((message) => message.content)
+  assert.equal(systemMessages.filter((message) => message.startsWith('Harness notice: 20 model steps remain.')).length, 1)
+  assert.equal(systemMessages.filter((message) => message.startsWith('Harness notice: 5 model steps remain.')).length, 1)
+  assert.equal(result.execution.failure?.code, 'step_budget_exhausted')
+  assert.equal(result.execution.stepsUsed, 21)
+  assert.equal(result.execution.requestAttempts, 21)
+})
+
+test('omits closure notices after natural termination', async () => {
+  const agent = new OpenRouterAgent('fixture-key', {
+    id: 'fixture-model',
+    providerOrder: ['fixture-provider'],
+    allowFallbacks: false,
+    maxTokens: 10_000,
+  }, { maxSteps: 120, maxCostUsd: 30, maxTotalTokens: 100_000, maxToolOutputBytes: 1_024 })
+  Object.defineProperty(agent, 'client', { value: {
+    chat: {
+      send: async () => ({
+        model: 'fixture-model',
+        choices: [{ message: { role: 'assistant', content: 'done' } }],
+        usage: { promptTokens: 10, completionTokens: 5, cost: 0.01 },
+      }),
+    },
+  } })
+
+  const result = await agent.run({
+    condition: 'baseline',
+    pairId: 'pair-01',
+    workspace: '/tmp/candidate',
+    task: { id: 'fixture', prompt: 'Refactor.' },
+  }, { execute: async () => '' } as unknown as CandidateTools)
+
+  assert.equal(result.status, 'completed')
+  assert.equal(result.execution.failure, null)
+  assert.doesNotMatch(JSON.stringify(result.trace), /Harness notice:/)
+})
+
+test('bounds and sorts tool telemetry across multiple calls per step', async () => {
+  const agent = new OpenRouterAgent('fixture-key', {
+    id: 'fixture-model',
+    providerOrder: ['fixture-provider'],
+    allowFallbacks: false,
+    maxTokens: 10_000,
+  }, { maxSteps: 4, maxCostUsd: 30, maxTotalTokens: 100_000, maxToolOutputBytes: 10_000 })
+  let requests = 0
+  Object.defineProperty(agent, 'client', { value: {
+    chat: {
+      send: async () => {
+        requests += 1
+        return {
+          model: 'fixture-model',
+          choices: [{
+            message: requests === 4
+              ? { role: 'assistant', content: 'done' }
+              : {
+                role: 'assistant',
+                content: null,
+                toolCalls: [
+                  { id: `${requests}-a`, type: 'function', function: { name: 'write_file', arguments: '{}' } },
+                  { id: `${requests}-b`, type: 'function', function: { name: 'mystery_tool', arguments: '{}' } },
+                  { id: `${requests}-c`, type: 'function', function: { name: 'read_file', arguments: '{}' } },
+                ],
+              },
+          }],
+          usage: { promptTokens: 10, completionTokens: 5, cost: 0.01 },
+        }
+      },
+    },
+  } })
+
+  const result = await agent.run({
+    condition: 'baseline',
+    pairId: 'pair-01',
+    workspace: '/tmp/candidate',
+    task: { id: 'fixture', prompt: 'Refactor.' },
+  }, {
+    execute: async (name: string) => {
+      if (name === 'mystery_tool') throw new Error('unknown')
+      return ''
+    },
+  } as unknown as CandidateTools)
+
+  assert.equal(result.status, 'completed')
+  assert.equal(result.execution.toolCalls, 9)
+  assert.deepEqual(result.execution.toolUsage.map(({ name }) => name), ['[unknown-tool]', 'read_file', 'write_file'])
+  assert.deepEqual(result.execution.toolUsage.find(({ name }) => name === '[unknown-tool]'), {
+    name: '[unknown-tool]',
+    count: 3,
+    errorCount: 3,
+  })
+  assert.equal(result.execution.recentToolCalls.length, 8)
+  assert.deepEqual(result.execution.recentToolCalls[0], { step: 1, name: '[unknown-tool]', outcome: 'execution_error' })
+  assert.deepEqual(result.execution.recentToolCalls.at(-1), { step: 3, name: 'read_file', outcome: 'ok' })
+})
+
+test('redacts generic failures and rejects unsafe registered Grace tool names from telemetry', async () => {
+  const unsafeNames = ['Grace-Bad-token="definitely-secret-value"', 'a'.repeat(65)]
+  const agent = new OpenRouterAgent('fixture-key', {
+    id: 'fixture-model',
+    providerOrder: ['fixture-provider'],
+    allowFallbacks: false,
+    maxTokens: 10_000,
+  }, { maxSteps: 2, maxCostUsd: 30, maxTotalTokens: 100_000, maxToolOutputBytes: 1_024 })
+  let requests = 0
+  Object.defineProperty(agent, 'client', { value: {
+    chat: {
+      send: async () => {
+        requests += 1
+        if (requests === 1) {
+          return {
+            model: 'fixture-model',
+            choices: [{
+              message: {
+                role: 'assistant',
+                content: null,
+                toolCalls: unsafeNames.map((name, index) => ({
+                  id: `call-${index}`,
+                  type: 'function',
+                  function: { name, arguments: '{}' },
+                })),
+              },
+            }],
+            usage: { promptTokens: 10, completionTokens: 5, cost: 0.01 },
+          }
+        }
+        const message = { role: 'assistant', content: 'done' }
+        Object.defineProperty(message, 'toolCalls', {
+          get: () => { throw new Error(`token="definitely-secret-value" /Users/alex/private ${'x'.repeat(300)}`) },
+        })
+        return {
+          model: 'fixture-model',
+          choices: [{ message }],
+          usage: { promptTokens: 10, completionTokens: 5, cost: 0.01 },
+        }
+      },
+    },
+  } })
+  const grace = {
+    definitions: unsafeNames.map((name) => ({ type: 'function', function: { name, parameters: { type: 'object' } } })),
+    execute: async () => '',
+  } as unknown as GraceTools
+
+  const result = await agent.run({
+    condition: 'grace',
+    pairId: 'pair-01',
+    workspace: '/tmp/candidate',
+    task: { id: 'fixture', prompt: 'Refactor.' },
+  }, { execute: async () => '' } as unknown as CandidateTools, grace)
+
+  assert.equal(result.status, 'infrastructure_error')
+  assert.equal(result.execution.failure?.code, 'agent_execution_failed')
+  assert.ok((result.execution.failure?.reason.length ?? 0) <= 240)
+  assert.doesNotMatch(result.execution.failure?.reason ?? '', /definitely-secret-value|\/Users\/alex/)
+  assert.deepEqual(result.execution.toolUsage, [{ name: '[unknown-tool]', count: 2, errorCount: 0 }])
+})
+
+test('distinguishes token reservation exhaustion from post-response overage', async () => {
+  const exhausted = new OpenRouterAgent('fixture-key', {
+    id: 'fixture-model',
+    providerOrder: ['fixture-provider'],
+    allowFallbacks: false,
+    maxTokens: 10_000,
+  }, { maxSteps: 1, maxCostUsd: 30, maxTotalTokens: 1, maxToolOutputBytes: 1_024 })
+  const unreachableClient = { chat: { send: async () => { throw new Error('must not request') } } }
+  Object.defineProperty(exhausted, 'client', { value: unreachableClient })
+  const input = {
+    condition: 'baseline' as const,
+    pairId: 'pair-01',
+    workspace: '/tmp/candidate',
+    task: { id: 'fixture', prompt: 'Refactor.' },
+  }
+  const tools = { execute: async () => '' } as unknown as CandidateTools
+  const exhaustedResult = await exhausted.run(input, tools)
+  assert.equal(exhaustedResult.execution.failure?.code, 'token_budget_exhausted')
+  assert.equal(exhaustedResult.execution.stepsUsed, 0)
+  assert.equal(exhaustedResult.execution.requestAttempts, 0)
+
+  const exceeded = new OpenRouterAgent('fixture-key', {
+    id: 'fixture-model',
+    providerOrder: ['fixture-provider'],
+    allowFallbacks: false,
+    maxTokens: 10_000,
+  }, { maxSteps: 1, maxCostUsd: 30, maxTotalTokens: 10_000, maxToolOutputBytes: 1_024 })
+  Object.defineProperty(exceeded, 'client', { value: {
+    chat: {
+      send: async () => ({
+        model: 'fixture-model',
+        choices: [{ message: { role: 'assistant', content: 'done' } }],
+        usage: { promptTokens: 9_999, completionTokens: 2, cost: 0.01 },
+      }),
+    },
+  } })
+  const exceededResult = await exceeded.run(input, tools)
+  assert.equal(exceededResult.execution.failure?.code, 'token_budget_exceeded')
+  assert.equal(exceededResult.execution.stepsUsed, 1)
+  assert.equal(exceededResult.execution.requestAttempts, 1)
+})
+
+test('caps tool usage aggregates at sixty-four registered names', async () => {
+  const names = Array.from({ length: 65 }, (_, index) => `grace_tool_${String(index).padStart(2, '0')}`)
+  const agent = new OpenRouterAgent('fixture-key', {
+    id: 'fixture-model',
+    providerOrder: ['fixture-provider'],
+    allowFallbacks: false,
+    maxTokens: 10_000,
+  }, { maxSteps: 2, maxCostUsd: 30, maxTotalTokens: 100_000, maxToolOutputBytes: 10_000 })
+  let requests = 0
+  Object.defineProperty(agent, 'client', { value: {
+    chat: {
+      send: async () => {
+        requests += 1
+        return {
+          model: 'fixture-model',
+          choices: [{
+            message: requests === 1
+              ? {
+                role: 'assistant',
+                content: null,
+                toolCalls: names.map((name, index) => ({
+                  id: `call-${index}`,
+                  type: 'function',
+                  function: { name, arguments: '{}' },
+                })),
+              }
+              : { role: 'assistant', content: 'done' },
+          }],
+          usage: { promptTokens: 10, completionTokens: 5, cost: 0.01 },
+        }
+      },
+    },
+  } })
+  const grace = {
+    definitions: names.map((name) => ({ type: 'function', function: { name, parameters: { type: 'object' } } })),
+    execute: async () => '',
+  } as unknown as GraceTools
+
+  const result = await agent.run({
+    condition: 'grace',
+    pairId: 'pair-01',
+    workspace: '/tmp/candidate',
+    task: { id: 'fixture', prompt: 'Refactor.' },
+  }, { execute: async () => '' } as unknown as CandidateTools, grace)
+
+  assert.equal(result.status, 'completed')
+  assert.equal(result.execution.toolCalls, 65)
+  assert.equal(result.execution.toolUsage.length, 64)
+  assert.equal(result.execution.toolUsageTruncated, true)
+  assert.deepEqual(result.execution.toolUsage.map(({ name }) => name), names.slice(0, 64))
+  assert.deepEqual(result.execution.recentToolCalls.map(({ name }) => name), names.slice(-8))
 })

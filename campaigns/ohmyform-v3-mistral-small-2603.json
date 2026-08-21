@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "campaignId": "ohmyform-submission-start-v2-claude-fable-5",
+  "campaignId": "ohmyform-submission-start-v3-mistral-small-2603",
   "target": {
     "checkout": "../.bench/targets/ccb-ohmyform",
     "repository": "https://github.com/HoppR-tech/ccb-ohmyform.git",
@@ -9,8 +9,8 @@
     "digest": "sha256:67d029e566ce918a0b4bf738b3535b8d2fc3f62e5ad6cea20040b20206d923ee"
   },
   "task": {
-    "id": "submission-start-code-quality-v2",
-    "prompt": "Refactor only the API submission-start vertical slice into clean architecture. Preserve the public GraphQL startSubmission contract and its current validation, token, cache, anonymization, persistence, and progress-result behavior. Introduce a domain-side submission persistence port, an application use case, a TypeORM infrastructure adapter, and a GraphQL interface adapter; wire them at the NestJS composition root. Migrate the existing caller and remove the superseded path. Do not refactor unrelated submission features. Produce production-quality code: keep the new files cohesive and type-safe, avoid suppressed diagnostics, add focused tests for the application use case covering success and failure behavior, and do not introduce dynamic code execution or process-spawning APIs."
+    "id": "submission-start-code-quality-v3",
+    "prompt": "Refactor only the API submission-start vertical slice into clean architecture. Preserve the public GraphQL startSubmission contract and its current validation, token, cache, anonymization, persistence, and progress-result behavior. Introduce a domain-side submission persistence port, an application use case, a TypeORM infrastructure adapter, and a GraphQL interface adapter; wire them at the NestJS composition root. Migrate the existing caller and remove the superseded path. Do not refactor unrelated submission features. Produce production-quality code: keep the new files cohesive and type-safe, avoid suppressed diagnostics, add focused tests for the application use case covering success and failure behavior, and do not introduce dynamic code execution or process-spawning APIs.\n\nPreserve these observable semantics: hash the input token through the injected hash dependency and store the returned hash; persist and return the exact submission instance passed to and returned from persistence; retain the form, user, and device for regular submissions; initialize elapsed time and completion percentage to zero; anonymize a supplied IP address; for anonymous submissions remove the user and apply the existing missing-IP fallback."
   },
   "repetitions": 3,
   "order": [
@@ -18,16 +18,15 @@
     "grace"
   ],
   "model": {
-    "id": "anthropic/claude-fable-5",
+    "id": "mistralai/mistral-small-2603",
     "providerOrder": [
-      "anthropic"
+      "mistral"
     ],
     "allowFallbacks": false,
-    "reasoningEffort": "high",
     "maxTokens": 32000
   },
   "agent": {
-    "maxSteps": 80,
+    "maxSteps": 120,
     "maxCostUsd": 30,
     "maxTotalTokens": 5000000,
     "maxToolOutputBytes": 524288
@@ -90,7 +89,7 @@
     "mcpUrl": "https://grace-mcp.hoppr.tech/mcp/ccb-benchmark-8169",
     "tokenEnv": "GRACE_MCP_TOKEN"
   },
-  "outputDirectory": "../.bench/results/ohmyform-submission-start-v2-claude-fable-5",
+  "outputDirectory": "../.bench/results/ohmyform-submission-start-v3-mistral-small-2603",
   "bootstrapSamples": 10000,
   "seed": 20260818
 }

@@ -2,6 +2,7 @@ import { opendir, readFile, stat, writeFile } from 'node:fs/promises'
 import { relative, resolve } from 'node:path'
 import { sha256 } from './digest.js'
 import { isSensitiveCandidatePath, sanitizeText } from './safe-diagnostics.js'
+import type { CandidateRecoveryInput, CandidateRecoveryMetadata } from './contracts.js'
 
 const MAX_TREE_ENTRIES = 10_000
 const MAX_RECOVERY_OPERATIONS = 512
@@ -73,14 +74,9 @@ async function changed(base: TreeFile | undefined, candidate: TreeFile): Promise
   return sha256(await readFile(base.absolutePath)) === digest ? null : { content, digest }
 }
 
-export async function writeCandidateRecoveryArtifact(options: {
-  baseRoot: string
-  candidateRoot: string
-  outputPath: string
-  baseCommit: string
-  baseTree: string
-  candidateDigest: string
-}): Promise<void> {
+export async function writeCandidateRecoveryArtifact(
+  options: CandidateRecoveryInput,
+): Promise<CandidateRecoveryMetadata> {
   const [base, candidate] = await Promise.all([
     collectFiles(options.baseRoot),
     collectFiles(options.candidateRoot),
@@ -154,4 +150,11 @@ export async function writeCandidateRecoveryArtifact(options: {
     operations,
     omitted,
   }, null, 2)}\n`)
+  return {
+    complete: omitted.length === 0 && redactions === 0 && omittedUnsafePathCount === 0,
+    redactions,
+    omittedUnsafePathCount,
+    operationCount: operations.length,
+    omittedCount: omitted.length,
+  }
 }

@@ -3,6 +3,7 @@ import { CandidateTools } from './candidate-tools.js'
 import { runCampaign } from './campaign.js'
 import { DockerCommandExecutor } from './docker-executor.js'
 import { FunctionalGate } from './functional-gate.js'
+import { writeCandidateRecoveryArtifact } from './failure-artifacts.js'
 import { connectGraceMcp } from './grace-mcp.js'
 import { loadManifest } from './manifest.js'
 import { OpenRouterAgent } from './openrouter-agent.js'
@@ -44,6 +45,7 @@ if (!manifestPath || process.argv.length !== 3) {
       },
       runFunctionalGate: (workspace) => functionalGate.run(workspace),
       evaluate: (workspace, pairId, condition) => evaluator.evaluate(workspace, pairId, condition),
+      captureCandidateRecovery: (input) => writeCandidateRecoveryArtifact(input),
     })
     console.log(JSON.stringify(result.aggregate, null, 2))
     const infrastructureErrors = result.records.filter((record) => record.status === 'infrastructure_error' || record.status === 'evaluator_error').length

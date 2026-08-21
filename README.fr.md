@@ -27,7 +27,7 @@ CCB publie :
 - **Delta Grace** — l’écart apparié entre Grace et baseline pour le même modèle, la même tâche et la même tentative.
 - **Efficience** — tokens, coût, latence et gain de qualité pour 1 000 tokens supplémentaires, publiés séparément de la capacité.
 - **Fiabilité** — les erreurs d’infrastructure fournisseur, harness ou évaluateur sont exclues et publiées avec des codes stables de phase et de raison.
-- **Preuves de score brutes** — points et seuils par contrôle versionné, extraits `fichier:ligne` relatifs au candidat, métriques, chemins et structure ; un échec évaluateur conserve aussi une sortie expurgée bornée et un patch candidat de récupération pour le rescoring hors ligne.
+- **Preuves de score brutes** — points et seuils par contrôle versionné, extraits `fichier:ligne` relatifs au candidat, métriques, chemins et structure ; les compteurs agent/outils, mismatches fonctionnelles, diagnostics évaluateur et artifacts candidats de récupération restent bornés et rendent les tentatives non scorées exploitables.
 
 La tranche OhMyForm actuelle reste une étude de cas sur une seule tâche. Généraliser entre modèles demande une suite versionnée plus large avec un poids égal par tâche.
 
@@ -109,7 +109,7 @@ Un candidat n’est qualifié que si son score pondéré atteint 70 % et si chaq
 
 Chaque tentative scorée porte le schéma de preuve v1. Une personne peut recalculer chaque contrôle, dimension, score global pondéré, décision de qualification et compteur de violations à partir d’identifiants stables et des points obtenus/maximaux. Les diagnostics inline sont relatifs au candidat, numérotés par ligne, expurgés et bornés pour l’affichage. Le JSON canonique de chaque run conserve tous les fichiers source/test évalués sous forme de contenu scoré complet et expurgé avec leur SHA-256 d’origine, chaque chemin de dépendance déterminant pour le score sans troncature de nœuds, et le graphe normalisé complet. Le rapport complet affiche une vue Mermaid bornée et renvoie vers cet artifact canonique.
 
-Les échecs évaluateur suivent le schéma de diagnostic v1 : phase/code stable, raison expurgée et bornée, exit/signal/timeout/stderr du processus si applicable et chemin de validation du schéma rejeté. Dès la fin de l’agent, avant toute gate ou évaluation, le harness prépare un patch de récupération candidat borné contre le commit/tree cible. En cas d’échec évaluateur ou de mutation par un consommateur, ce patch immuable est publié : son contenu et son `candidateDigest` décrivent toujours le candidat de l’agent. Chemins hôte, credentials, environnement, fichiers sensibles et traces du modèle en sont exclus.
+Les diagnostics d’exécution agent utilisent des codes d’échec stables et des compteurs bornés d’étapes, de requêtes et de noms d’outils ; ils ne publient jamais arguments, sorties d’outils ni traces du modèle. Les échecs d’assertion fonctionnelle conservent au plus 16 mismatches RFC 6901 déterministes et expurgées. Dès chaque retour de l’agent, avant toute gate ou évaluation, le harness prépare un artifact de récupération candidat borné contre le commit/tree cible. Une tentative scorée le supprime ; toute tentative non scorée publie cet état immuable ou une raison expurgée explicite `recovery_unavailable`. Chemins hôte, credentials, environnement, fichiers sensibles et traces du modèle en sont exclus ; toute récupération expurgée ou incomplète est qualifiée `sanitized/incomplete`, jamais de replay exact.
 
 La matrice prévue couvre Java/Kotlin, C#/.NET, TypeScript, Python et Go.
 
@@ -127,7 +127,7 @@ Le benchmark vérifie un comportement observable, pas la résistance à un progr
 
 ## État et vérification
 
-La première tranche v2 est `campaigns/ohmyform-v2.json` : trois tentatives pass@1 appariées sur la tâche OhMyForm submission-start épinglée. Le harness public, le parseur strict de manifest v2, la boucle d’outils OpenRouter, l’exécuteur Docker, la gate fonctionnelle, l’évaluateur multidimensionnel, le contrat de preuves de score réconciliées, l’agrégation appariée qui tient compte des échecs et les preuves de provenance sont implémentés.
+La première tranche de protocole v3 est `campaigns/ohmyform-v3.json` : trois tentatives pass@1 appariées sur la tâche OhMyForm submission-start épinglée, avec 120 étapes agent et des critères sémantiques observables explicites. Le schéma de manifest v2 et le rule pack `ohmyform-v2` restent inchangés. Le harness public, le parseur strict, la boucle d’outils OpenRouter, l’exécuteur Docker, la gate fonctionnelle, l’évaluateur multidimensionnel, le contrat de preuves de score réconciliées, l’agrégation appariée qui tient compte des échecs et les preuves de provenance sont implémentés.
 
 ```sh
 npm ci --ignore-scripts
@@ -137,11 +137,11 @@ npm run preflight:evaluator -- /chemin/absolu/campaign.json /chemin/absolu/ccb-e
 
 Ce preflight évaluateur est gratuit : la CI checkout le commit évaluateur exact, vérifie les digests du manifest puis envoie les fixtures passante et échouante dans le `ProcessEvaluator` de production avant tout accès aux credentials ou appel fournisseur.
 
-Les agents de code locaux lisent `.mcp.json` et effectuent l’OAuth Grace lors de leur première connexion. Les campagnes payantes s’exécutent via `.github/workflows/benchmarks.yml` avec les secrets de repository. Les contrôles du harness, le preflight gratuit et chaque benchmark apparaissent comme des jobs séparés. Les artifacts publiés contiennent les runs canoniques, les diagnostics d’échec bornés et les patchs de récupération, jamais les traces complètes du modèle.
+Les agents de code locaux lisent `.mcp.json` et effectuent l’OAuth Grace lors de leur première connexion. Les campagnes payantes s’exécutent via `.github/workflows/benchmarks.yml` avec les secrets de repository. Les contrôles du harness, le preflight gratuit et chaque benchmark apparaissent comme des jobs séparés. Les artifacts publiés contiennent les runs canoniques, les diagnostics bornés d’exécution agent, d’outils, de gate et d’évaluateur, ainsi que les artifacts de récupération candidat expurgés ; jamais les traces complètes du modèle.
 
 ### Première cible de benchmark
 
-Le checkout OhMyForm audité et la campagne sont épinglés dans `campaigns/ohmyform-v2.json`.
+Le checkout OhMyForm audité et la campagne sont épinglés dans `campaigns/ohmyform-v3.json`.
 
 #### Architecture actuelle et état d’OhMyForm
 

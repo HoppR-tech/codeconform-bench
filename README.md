@@ -27,7 +27,7 @@ CCB reports:
 - **Grace delta** — the paired difference between Grace and baseline for the same model, task, and attempt.
 - **Efficiency** — tokens, cost, latency, and quality gain per additional 1,000 tokens, reported separately from capability.
 - **Reliability** — candidate failures remain scored outcomes when scoring exists; provider, harness, and evaluator infrastructure failures are excluded and reported with stable phase/reason codes.
-- **Raw scoring evidence** — versioned per-check points, thresholds, candidate-relative `file:line` snippets, evaluated-file metrics, dependency paths, and structure used to justify every score; evaluator failures retain bounded sanitized result/process diagnostics and a redacted candidate recovery patch for offline rescoring.
+- **Raw scoring evidence** — versioned per-check points, thresholds, candidate-relative `file:line` snippets, evaluated-file metrics, dependency paths, and structure used to justify every score; bounded agent/tool counters, functional mismatches, evaluator diagnostics, and sanitized candidate recovery artifacts make non-scored attempts actionable.
 
 The current OhMyForm slice is a single-task case study. Cross-model generalization requires a larger, versioned task suite with equal task weighting.
 
@@ -109,7 +109,7 @@ A candidate is quality-qualified only if its weighted score reaches 70% and ever
 
 Every scored attempt carries evidence schema v1. A human can recompute each check, dimension, weighted overall score, qualification decision, and violation count from stable check IDs and earned/maximum points. Inline diagnostics are candidate-relative, line-numbered, redacted, and bounded for display. Canonical per-run JSON preserves every evaluated source/test file as complete redacted scored-source content with its original SHA-256 digest, every score-determining dependency path without node truncation, and the complete normalized graph. The full report renders a bounded Mermaid view and points back to that canonical artifact.
 
-Evaluator failures use diagnostic schema v1: a stable phase/code plus bounded redacted reason, process exit/signal/timeout/stderr when applicable, and validation path for rejected result schemas. Immediately after the agent completes—and before either trusted consumer can touch the workspace—the harness stages a bounded candidate-relative recovery patch against the pinned target commit/tree. It publishes that immutable patch for evaluator failures or detected consumer mutation, so its content and `candidateDigest` always describe the agent candidate rather than later mutations. Sensitive paths, host paths, credentials, environment data, and model traces are excluded.
+Agent execution diagnostics use stable failure codes plus bounded step, request, and tool-name counters; they never publish tool arguments, tool outputs, or model traces. Functional assertion failures retain at most 16 deterministic, sanitized RFC 6901 mismatches. Immediately after every agent return—and before either trusted consumer can touch the workspace—the harness stages a bounded candidate-relative recovery artifact against the pinned target commit/tree. Scored attempts discard it; every non-scored attempt publishes the immutable artifact or an explicit sanitized `recovery_unavailable` reason. Sensitive paths, host paths, credentials, environment data, and model traces are excluded, and redacted or omitted recoveries are labeled sanitized/incomplete rather than exact replays.
 
 Evidence schema v1 accepts five non-empty dimensions and at most 35 unique checks total per run. That budget matches the official TypeScript evaluator and guarantees that all six accepted attempts can show every check row in the bounded Job Summary; over-budget evaluator output fails with a path-bearing `result_schema_invalid` diagnostic before campaign persistence.
 
@@ -129,7 +129,7 @@ The benchmark tests observable behavior, not resistance to a deliberately test-a
 
 ## Status and verification
 
-The first v2 slice is `campaigns/ohmyform-v2.json`: three paired pass@1 attempts against the pinned OhMyForm submission-start task. The public harness, strict v2 manifest parser, OpenRouter tool loop, Docker executor, functional gate, multidimensional evaluator adapter, reconciled scoring-evidence contract, outcome-aware paired aggregation, and provenance records are implemented.
+The first protocol-v3 slice is `campaigns/ohmyform-v3.json`: three paired pass@1 attempts against the pinned OhMyForm submission-start task, with a 120-step agent budget and explicit observable semantic criteria. Manifest schema v2 and the `ohmyform-v2` rule pack remain unchanged. The public harness, strict manifest parser, OpenRouter tool loop, Docker executor, functional gate, multidimensional evaluator adapter, reconciled scoring-evidence contract, outcome-aware paired aggregation, and provenance records are implemented.
 
 ```sh
 npm ci --ignore-scripts
@@ -139,7 +139,7 @@ npm run preflight:evaluator -- /absolute/path/to/campaign.json /absolute/path/to
 
 The evaluator preflight is unpaid. CI checks out the exact evaluator commit, verifies the manifest digests, and sends both passing and failing fixtures through the production `ProcessEvaluator` before any benchmark job can read credentials or contact a model provider.
 
-Local coding agents read `.mcp.json` and complete Grace OAuth on their first connection. Paid campaigns run through `.github/workflows/benchmarks.yml`; because GitHub Actions is non-interactive, it uses the repository’s `OPENROUTER_API_KEY` and `GRACE_MCP_TOKEN` secrets instead. Only Grace runs connect to the configured Grace SaaS MCP; baseline runs receive neither its instructions nor its tools. Harness checks, the unpaid evaluator preflight, and each benchmark appear as separate jobs in the GitHub Actions graph. Campaigns are fixed at three paired repetitions. Every benchmark publishes a deterministic Job Summary under 128 KiB plus canonical run data, bounded evaluator failure diagnostics, and candidate recovery patches; full model traces are excluded from published artifacts.
+Local coding agents read `.mcp.json` and complete Grace OAuth on their first connection. Paid campaigns run through `.github/workflows/benchmarks.yml`; because GitHub Actions is non-interactive, it uses the repository’s `OPENROUTER_API_KEY` and `GRACE_MCP_TOKEN` secrets instead. Only Grace runs connect to the configured Grace SaaS MCP; baseline runs receive neither its instructions nor its tools. Harness checks, the unpaid evaluator preflight, and each benchmark appear as separate jobs in the GitHub Actions graph. Campaigns are fixed at three paired repetitions. Every benchmark publishes a deterministic Job Summary under 128 KiB plus canonical run data, bounded agent/tool and functional diagnostics, evaluator failure diagnostics, and sanitized candidate recovery artifacts; full model traces are excluded from published artifacts.
 
 ### First documented benchmark target
 

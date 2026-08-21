@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ohmyform-code-quality-benchmark-v2
+  group: ohmyform-code-quality-benchmark-v3
   cancel-in-progress: false
 
 jobs:
@@ -74,7 +74,7 @@ jobs:
           npm ci --ignore-scripts --prefix .bench/evaluator
 
       - name: Exercise passing and failing fixtures through ProcessEvaluator
-        run: npm run preflight:evaluator -- "${{ github.workspace }}/campaigns/ohmyform-v2-gpt-5.6-luna.json" "${{ github.workspace }}/.bench/evaluator/test/fixtures"
+        run: npm run preflight:evaluator -- "${{ github.workspace }}/campaigns/ohmyform-v3-gpt-5.6-luna.json" "${{ github.workspace }}/.bench/evaluator/test/fixtures"
 
 
   benchmark-ohmyform-small-models:
@@ -87,14 +87,14 @@ jobs:
       matrix:
         include:
           - name: GPT-5.6 Luna
-            campaign: campaigns/ohmyform-v2-gpt-5.6-luna.json
-            output: ohmyform-submission-start-v2-gpt-5.6-luna
+            campaign: campaigns/ohmyform-v3-gpt-5.6-luna.json
+            output: ohmyform-submission-start-v3-gpt-5.6-luna
           - name: Gemini 3.1 Flash Lite
-            campaign: campaigns/ohmyform-v2-gemini-3.1-flash-lite.json
-            output: ohmyform-submission-start-v2-gemini-3.1-flash-lite
+            campaign: campaigns/ohmyform-v3-gemini-3.1-flash-lite.json
+            output: ohmyform-submission-start-v3-gemini-3.1-flash-lite
           - name: Mistral Small 2603
-            campaign: campaigns/ohmyform-v2-mistral-small-2603.json
-            output: ohmyform-submission-start-v2-mistral-small-2603
+            campaign: campaigns/ohmyform-v3-mistral-small-2603.json
+            output: ohmyform-submission-start-v3-mistral-small-2603
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:

@@ -177,6 +177,48 @@ export interface CampaignManifest {
   seed: number
 }
 
+export const AGENT_DIAGNOSTIC_SCHEMA_VERSION = 1 as const
+
+export type AgentFailureCode =
+  | 'step_budget_exhausted'
+  | 'token_budget_exhausted'
+  | 'token_budget_exceeded'
+  | 'cost_budget_exceeded'
+  | 'tool_output_budget_exceeded'
+  | 'provider_transport_failed'
+  | 'provider_response_invalid'
+  | 'grace_transport_failed'
+  | 'agent_execution_failed'
+
+export interface AgentFailureDiagnostic {
+  schemaVersion: typeof AGENT_DIAGNOSTIC_SCHEMA_VERSION
+  code: AgentFailureCode
+  reason: string
+}
+
+export interface AgentToolUsage {
+  name: string
+  count: number
+  errorCount: number
+}
+
+export interface AgentToolActivity {
+  step: number
+  name: string
+  outcome: 'ok' | 'input_error' | 'execution_error'
+}
+
+export interface AgentExecutionSummary {
+  stepsUsed: number
+  maxSteps: number
+  requestAttempts: number
+  toolCalls: number
+  toolUsage: AgentToolUsage[]
+  toolUsageTruncated: boolean
+  recentToolCalls: AgentToolActivity[]
+  failure: AgentFailureDiagnostic | null
+}
+
 export interface AgentInput {
   condition: Condition
   pairId: string
@@ -186,7 +228,7 @@ export interface AgentInput {
 
 export interface AgentOutput {
   status: 'completed' | 'agent_error' | 'infrastructure_error'
-  error: string | null
+  execution: AgentExecutionSummary
   model: string
   provider: string | null
   promptTokens: number
@@ -213,14 +255,35 @@ export type FunctionalGateCode =
   | 'probe_nonce_invalid'
   | 'probe_result_missing'
   | 'probe_payload_invalid'
+  | 'probe_payload_limits_exceeded'
   | 'assertion_mismatch'
   | 'candidate_mutated'
+
+export const FUNCTIONAL_EVIDENCE_SCHEMA_VERSION = 1 as const
+
+export interface FunctionalMismatch {
+  path: string
+  kind: 'missing' | 'unexpected' | 'type' | 'value'
+  expected: string
+  actual: string
+}
+
+export interface FunctionalGateEvidence {
+  schemaVersion: typeof FUNCTIONAL_EVIDENCE_SCHEMA_VERSION
+  totalMismatchCount: number
+  retainedMismatchCount: number
+  truncated: boolean
+  redactions: number
+  valuesTruncated: number
+  mismatches: FunctionalMismatch[]
+}
 
 export interface FunctionalGateResult {
   passed: boolean
   phase: FunctionalGatePhase
   code: FunctionalGateCode
   detail: string | null
+  evidence: FunctionalGateEvidence | null
 }
 
 export const EVALUATOR_FAILURE_SCHEMA_VERSION = 1 as const
@@ -282,11 +345,42 @@ export type EvaluatorResult =
   }
   | { status: 'evaluator_error'; diagnostic: EvaluatorFailureDiagnostic }
 
+export interface CandidateRecoveryMetadata {
+  complete: boolean
+  redactions: number
+  omittedUnsafePathCount: number
+  operationCount: number
+  omittedCount: number
+}
+
+export interface CandidateRecoveryInput {
+  baseRoot: string
+  candidateRoot: string
+  outputPath: string
+  baseCommit: string
+  baseTree: string
+  candidateDigest: string
+}
+
+export type CandidateRecoveryReference =
+  | ({
+    schemaVersion: 1
+    status: 'available'
+    path: string
+  } & CandidateRecoveryMetadata)
+  | {
+    schemaVersion: 1
+    status: 'unavailable'
+    path: null
+    code: 'recovery_unavailable'
+    reason: string
+  }
+
 export interface RunRecord {
   pairId: string
   condition: Condition
   status: 'scored' | 'functional_failed' | 'agent_error' | 'infrastructure_error' | 'evaluator_error'
-  agentError: string | null
+  agentExecution: AgentExecutionSummary
   targetCommit: string
   targetTree: string
   candidateDigest: string
@@ -298,6 +392,7 @@ export interface RunRecord {
   cost: number | null
   functionalGate: FunctionalGateResult | null
   evaluatorFailure: EvaluatorFailureDiagnostic | null
+  candidateRecovery: CandidateRecoveryReference | null
   durationMs: number
   codeQualityScore: number | null
   qualityQualified: boolean | null
@@ -312,6 +407,7 @@ export interface CampaignPorts {
   runAgent(input: AgentInput): Promise<AgentOutput>
   runFunctionalGate(workspace: string): Promise<FunctionalGateResult>
   evaluate(workspace: string, pairId: string, condition: Condition): Promise<EvaluatorResult>
+  captureCandidateRecovery(input: CandidateRecoveryInput): Promise<CandidateRecoveryMetadata>
 }
 
 export interface ConditionSummary {

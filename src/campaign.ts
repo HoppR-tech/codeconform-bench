@@ -1,9 +1,9 @@
 import { lstat, mkdir, realpath, rename, rm, writeFile } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
-import { EVALUATOR_FAILURE_SCHEMA_VERSION, QUALITY_DIMENSIONS, type AgentOutput, type CampaignAggregate, type CampaignManifest, type CampaignPorts, type CampaignResult, type Condition, type ConditionSummary, type EvaluatorFailureDiagnostic, type FunctionalGateResult, type QualityDimensions, type QualityEvidence, type RunRecord } from './contracts.js'
+import { AGENT_DIAGNOSTIC_SCHEMA_VERSION, EVALUATOR_FAILURE_SCHEMA_VERSION, QUALITY_DIMENSIONS, type AgentOutput, type CampaignAggregate, type CampaignManifest, type CampaignPorts, type CampaignResult, type CandidateRecoveryMetadata, type CandidateRecoveryReference, type Condition, type ConditionSummary, type EvaluatorFailureDiagnostic, type FunctionalGateResult, type QualityDimensions, type QualityEvidence, type RunRecord } from './contracts.js'
 import { hashTree, sha256 } from './digest.js'
-import { writeCandidateRecoveryArtifact } from './failure-artifacts.js'
 import { renderCampaignReport, renderCampaignSummary } from './report.js'
+import { safeReason } from './safe-diagnostics.js'
 
 function mean(values: readonly number[]): number | null {
   return values.length === 0 ? null : values.reduce((total, value) => total + value, 0) / values.length
@@ -180,16 +180,29 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
           task: manifest.task,
         })
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'agent failed'
+        const reason = safeReason(error, 'agent failed')
         agent = {
           status: 'infrastructure_error',
-          error: message,
+          execution: {
+            stepsUsed: 0,
+            maxSteps: manifest.agent.maxSteps,
+            requestAttempts: 0,
+            toolCalls: 0,
+            toolUsage: [],
+            toolUsageTruncated: false,
+            recentToolCalls: [],
+            failure: {
+              schemaVersion: AGENT_DIAGNOSTIC_SCHEMA_VERSION,
+              code: 'agent_execution_failed',
+              reason,
+            },
+          },
           model: manifest.model.id,
           provider: null,
           promptTokens: 0,
           completionTokens: 0,
           cost: null,
-          trace: [{ role: 'system', content: `Harness error: ${message}` }],
+          trace: [{ role: 'system', content: `Harness error: ${reason}` }],
         }
       }
       const traceJson = `${JSON.stringify(agent.trace, null, 2)}\n`
@@ -197,8 +210,10 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
       await writeFile(resolve(output, 'runs', `${pairId}-${condition}-trace.json`), traceJson)
       const candidateDigest = await hashTree(workspace)
       const recoveryStagingPath = resolve(output, 'failures', `.${pairId}-${condition}-candidate-recovery.tmp`)
-      if (agent.status === 'completed') {
-        await writeCandidateRecoveryArtifact({
+      let recoveryMetadata: CandidateRecoveryMetadata | null = null
+      let recoveryFailureReason: string | null = null
+      try {
+        recoveryMetadata = await ports.captureCandidateRecovery({
           baseRoot: target,
           candidateRoot: workspace,
           outputPath: recoveryStagingPath,
@@ -206,6 +221,8 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
           baseTree: manifest.target.tree,
           candidateDigest,
         })
+      } catch (error) {
+        recoveryFailureReason = safeReason(error, 'candidate recovery capture failed')
       }
 
       let status: RunRecord['status'] = agent.status === 'infrastructure_error' ? 'infrastructure_error' : 'agent_error'
@@ -225,6 +242,7 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
             phase: 'candidate_integrity',
             code: 'candidate_mutated',
             detail: 'functional gate mutated the candidate workspace',
+            evidence: null,
           }
         }
         if (!functionalGate.passed) {
@@ -253,20 +271,45 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
         }
       }
 
-      if (agent.status === 'completed') {
-        const recoveryPath = resolve(output, 'failures', `${pairId}-${condition}-candidate-recovery.json`)
-        if (status === 'evaluator_error' || functionalGate?.code === 'candidate_mutated') {
-          await rename(recoveryStagingPath, recoveryPath)
+      let candidateRecovery: CandidateRecoveryReference | null = null
+      const recoveryRelativePath = `failures/${pairId}-${condition}-candidate-recovery.json`
+      const recoveryPath = resolve(output, recoveryRelativePath)
+      if (status !== 'scored') {
+        if (recoveryMetadata === null) {
+          candidateRecovery = {
+            schemaVersion: 1,
+            status: 'unavailable',
+            path: null,
+            code: 'recovery_unavailable',
+            reason: recoveryFailureReason ?? 'candidate recovery capture failed',
+          }
         } else {
-          await rm(recoveryStagingPath, { force: true })
+          try {
+            await rename(recoveryStagingPath, recoveryPath)
+            candidateRecovery = {
+              schemaVersion: 1,
+              status: 'available',
+              path: recoveryRelativePath,
+              ...recoveryMetadata,
+            }
+          } catch (error) {
+            candidateRecovery = {
+              schemaVersion: 1,
+              status: 'unavailable',
+              path: null,
+              code: 'recovery_unavailable',
+              reason: safeReason(error, 'candidate recovery publication failed'),
+            }
+          }
         }
       }
+      await rm(recoveryStagingPath, { force: true }).catch(() => {})
 
       const record: RunRecord = {
         pairId,
         condition,
         status,
-        agentError: agent.error,
+        agentExecution: agent.execution,
         targetCommit: manifest.target.commit,
         targetTree: manifest.target.tree,
         candidateDigest,
@@ -278,6 +321,7 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
         cost: agent.cost,
         functionalGate,
         evaluatorFailure,
+        candidateRecovery,
         codeQualityScore,
         qualityQualified,
         qualityDimensions,
