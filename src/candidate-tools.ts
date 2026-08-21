@@ -1,11 +1,58 @@
 import { lstat, mkdir, opendir, readFile, realpath, writeFile } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import type { ChatFunctionTool } from '@openrouter/sdk/models'
-import type { CommandResult } from './contracts.js'
+import type { AgentCommandCode, CommandResult } from './contracts.js'
+import { sanitizeText } from './safe-diagnostics.js'
 
 const MAX_FILE_BYTES = 1024 * 1024
 const MAX_LIST_ENTRIES = 5_000
 const MAX_WORKSPACE_BYTES = 32 * 1024 * 1024
+const APPROVED_COMMAND_NAME = /^[a-z][a-z0-9_-]{0,63}$/
+
+export interface CandidateCommandDiagnostic {
+  command: string | null
+  code: AgentCommandCode
+  exitCode: number | null
+  signal: string | null
+  timedOut: boolean
+  reason: string | null
+}
+
+export class CandidateCommandError extends Error {
+  constructor(message: string, readonly diagnostic: CandidateCommandDiagnostic) {
+    super(message)
+  }
+}
+
+function safeApprovedCommand(name: string): string {
+  const sanitized = sanitizeText(name, 64).text
+  return APPROVED_COMMAND_NAME.test(sanitized) ? sanitized : '[approved-command]'
+}
+
+function completedCommandDiagnostic(command: string, result: CommandResult): CandidateCommandDiagnostic {
+  const code: AgentCommandCode = result.timedOut
+    ? 'command_timeout'
+    : result.signal
+      ? 'command_signal'
+      : result.exitCode === 0
+        ? 'passed'
+        : 'command_exit'
+  const reason = code === 'passed'
+    ? null
+    : code === 'command_timeout'
+      ? 'approved command timed out'
+      : code === 'command_signal'
+        ? 'approved command terminated by signal'
+        : 'approved command exited non-zero'
+  return {
+    command: safeApprovedCommand(command),
+    code,
+    exitCode: result.exitCode,
+    signal: result.signal === null ? null : sanitizeText(result.signal, 32).text,
+    timedOut: result.timedOut,
+    reason,
+  }
+}
 
 export const candidateToolDefinitions: ChatFunctionTool[] = [
   {
@@ -141,9 +188,12 @@ async function treeSize(root: string): Promise<number> {
 
 export class CandidateTools {
   private commandRuns = 0
+  private readonly pendingCommandDiagnostics: CandidateCommandDiagnostic[] = []
+
   constructor(
     private readonly root: string,
     private readonly runApprovedCommand: (name: string) => Promise<CommandResult>,
+    private readonly approvedCommandNames: ReadonlySet<string>,
   ) {}
 
   async execute(name: string, rawArguments: string): Promise<string> {
@@ -159,13 +209,53 @@ export class CandidateTools {
       case 'write_file':
         await this.write(argument(values.path, 'path'), argument(values.content, 'content'))
         return 'written'
-      case 'run_command':
-        if (this.commandRuns >= 1) throw new Error('validation command limit exceeded')
+      case 'run_command': {
+        const command = argument(values.name, 'name')
+        const approved = this.approvedCommandNames.has(command)
+        if (this.commandRuns >= 1) {
+          throw new CandidateCommandError('validation command limit exceeded', {
+            command: approved ? safeApprovedCommand(command) : null,
+            code: 'command_limit_exceeded',
+            exitCode: null,
+            signal: null,
+            timedOut: false,
+            reason: 'validation command limit exceeded',
+          })
+        }
         this.commandRuns += 1
-        return JSON.stringify(await this.runApprovedCommand(argument(values.name, 'name')))
+        if (!approved) {
+          throw new CandidateCommandError('command is not approved', {
+            command: null,
+            code: 'command_not_approved',
+            exitCode: null,
+            signal: null,
+            timedOut: false,
+            reason: 'requested command is not approved',
+          })
+        }
+        let result: CommandResult
+        try {
+          result = await this.runApprovedCommand(command)
+        } catch {
+          throw new CandidateCommandError('approved command execution failed', {
+            command: safeApprovedCommand(command),
+            code: 'command_execution_failed',
+            exitCode: null,
+            signal: null,
+            timedOut: false,
+            reason: 'approved command execution failed',
+          })
+        }
+        this.pendingCommandDiagnostics.push(completedCommandDiagnostic(command, result))
+        return JSON.stringify(result)
+      }
       default:
         throw new Error(`unknown tool: ${name}`)
     }
+  }
+
+  takeCommandDiagnostics(): CandidateCommandDiagnostic[] {
+    return this.pendingCommandDiagnostics.splice(0)
   }
 
   private async list(requested: string): Promise<string[]> {

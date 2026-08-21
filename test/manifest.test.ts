@@ -27,8 +27,10 @@ const valid = {
 }
 
 const SEMANTIC_ACCEPTANCE_PARAGRAPH = 'Preserve these observable semantics: hash the input token through the injected hash dependency and store the returned hash; persist and return the exact submission instance passed to and returned from persistence; retain the form, user, and device for regular submissions; initialize elapsed time and completion percentage to zero; anonymize a supplied IP address; for anonymous submissions remove the user and apply the existing missing-IP fallback.'
+const ARCHITECTURE_ACCEPTANCE_PARAGRAPH = 'Complete the clean cutover: name the application class StartSubmissionUseCase with an execute(command) method; register it and the submission infrastructure adapter in app.providers; register the new GraphQL interface adapter in submissionResolvers; and remove SubmissionStartService and the legacy resolver mutation. Either layer-first paths such as application/submission or feature-first paths such as submission/application are accepted.'
 const RUNNER_DIGEST = 'sha256:7388ec346e10e6706403a451d371f0c508bdfc99c4940614ac24928973318352'
-const RULE_PACK_DIGEST = 'sha256:aea4997d5b24388a7866c4dc1ea6a414cef7f533057ce48f1a879b81a8a1cb3d'
+const RULE_PACK_DIGEST = 'sha256:c30fa546600a61387552db5d0088a117d56697d5df1cf0b162e3b1a81fd1b487'
+const FUNCTIONAL_GATE_DIGEST = 'sha256:38469e4ec00ab47d2ae5c9ae375c6c4b907100e99476e493c1e7252c130f4639'
 
 test('accepts a fully pinned campaign manifest', () => {
   assert.equal(parseManifest(valid).campaignId, 'ohmyform-v2')
@@ -54,14 +56,14 @@ test('rejects mutable execution inputs', () => {
   assert.throws(() => parseManifest({ ...valid, campaignId: 'x'.repeat(121) }), /campaignId must be a non-empty string of at most 120 characters/)
 })
 
-test('ships exactly eleven protocol-v3 manifests with identical semantic and evaluator contracts', async () => {
+test('ships exactly eleven protocol-v4 manifests with identical functional and evaluator contracts', async () => {
   const directory = resolve('campaigns')
   const entries = (await readdir(directory)).filter((name) => name.endsWith('.json')).sort()
-  const v3Entries = entries.filter((name) => /^ohmyform-v3(?:-|\.json)/.test(name))
-  assert.equal(v3Entries.length, 11)
-  assert.deepEqual(entries.filter((name) => /^ohmyform-v2(?:-|\.json)/.test(name)), [])
+  const v4Entries = entries.filter((name) => /^ohmyform-v4(?:-|\.json)/.test(name))
+  assert.equal(v4Entries.length, 11)
+  assert.deepEqual(entries.filter((name) => /^ohmyform-v3(?:-|\.json)/.test(name)), [])
 
-  const manifests = await Promise.all(v3Entries.map(async (name) => ({
+  const manifests = await Promise.all(v4Entries.map(async (name) => ({
     name,
     manifest: parseManifest(JSON.parse(await readFile(resolve(directory, name), 'utf8')) as unknown),
   })))
@@ -70,16 +72,20 @@ test('ships exactly eleven protocol-v3 manifests with identical semantic and eva
   for (const { name, manifest } of manifests) {
     assert.equal(manifest.schemaVersion, 2, name)
     assert.equal(manifest.agent.maxSteps, 120, name)
-    assert.equal(manifest.task.id, 'submission-start-code-quality-v3', name)
+    assert.equal(manifest.task.id, 'submission-start-code-quality-v4', name)
+    assert.equal(manifest.task.prompt.includes(ARCHITECTURE_ACCEPTANCE_PARAGRAPH), true, name)
     assert.equal(manifest.task.prompt.endsWith(`\n\n${SEMANTIC_ACCEPTANCE_PARAGRAPH}`), true, name)
-    assert.match(manifest.campaignId, /^ohmyform-submission-start-v3(?:-|$)/, name)
-    assert.match(manifest.outputDirectory, /\/ohmyform-submission-start-v3(?:-|$)/, name)
+    assert.match(manifest.campaignId, /^ohmyform-submission-start-v4(?:-|$)/, name)
+    assert.match(manifest.outputDirectory, /\/ohmyform-submission-start-v4(?:-|$)/, name)
+    assert.equal(manifest.functionalGate.readOnlyMounts.length, 1, name)
+    assert.equal(manifest.functionalGate.readOnlyMounts[0]?.source.endsWith('/gates/ohmyform-v2'), true, name)
+    assert.equal(manifest.functionalGate.readOnlyMounts[0]?.digest, FUNCTIONAL_GATE_DIGEST, name)
     assert.equal(manifest.evaluator.runner.digest, RUNNER_DIGEST, name)
-    assert.equal(manifest.evaluator.rulePack.id, 'ohmyform-v2', name)
-    assert.equal(manifest.evaluator.rulePack.version, '3', name)
+    assert.equal(manifest.evaluator.rulePack.id, 'ohmyform-v3', name)
+    assert.equal(manifest.evaluator.rulePack.version, '4', name)
     assert.equal(manifest.evaluator.rulePack.digest, RULE_PACK_DIGEST, name)
     assert.equal(
-      manifest.evaluator.rulePack.path.endsWith('/.bench/evaluator/rule-packs/typescript/ohmyform-v2/dependency-cruiser.config.cjs'),
+      manifest.evaluator.rulePack.path.endsWith('/.bench/evaluator/rule-packs/typescript/ohmyform-v3/dependency-cruiser.config.cjs'),
       true,
       name,
     )

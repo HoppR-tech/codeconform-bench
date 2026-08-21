@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ohmyform-code-quality-benchmark-v3
+  group: ohmyform-code-quality-benchmark-v4
   cancel-in-progress: false
 
 jobs:
@@ -77,13 +77,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .bench
-          git clone --filter=blob:none --branch benchmark/ohmyform-v2 https://github.com/HoppR-tech/ccb-evaluator.git .bench/evaluator
-          git -C .bench/evaluator checkout --detach b022658fedc4c1e5463efceb755a96abde0fd4fe
-          test "$(git -C .bench/evaluator rev-parse HEAD)" = "b022658fedc4c1e5463efceb755a96abde0fd4fe"
+          git clone --filter=blob:none --branch benchmark/ohmyform-v3 https://github.com/HoppR-tech/ccb-evaluator.git .bench/evaluator
+          git -C .bench/evaluator checkout --detach ab7eec927b95f6a4b2d8ac4bcad4daf86b1a1acf
+          test "$(git -C .bench/evaluator rev-parse HEAD)" = "ab7eec927b95f6a4b2d8ac4bcad4daf86b1a1acf"
           npm ci --ignore-scripts --prefix .bench/evaluator
 
       - name: Exercise passing and failing fixtures through ProcessEvaluator
-        run: npm run preflight:evaluator -- "${{ github.workspace }}/campaigns/ohmyform-v3-gpt-5.6-luna.json" "${{ github.workspace }}/.bench/evaluator/test/fixtures"
+        run: npm run preflight:evaluator -- "${{ github.workspace }}/campaigns/ohmyform-v4-gpt-5.6-luna.json" "${{ github.workspace }}/.bench/evaluator/test/fixtures"
 
 
   benchmark-matrix:
@@ -99,9 +99,9 @@ jobs:
         env:
           BENCHMARK_TIER: ${{ inputs.benchmark_tier }}
           SMALL_MATRIX: >-
-            {"include":[{"name":"GPT-5.6 Luna","campaign":"campaigns/ohmyform-v3-gpt-5.6-luna.json","output":"ohmyform-submission-start-v3-gpt-5.6-luna"},{"name":"Gemini 3.1 Flash Lite","campaign":"campaigns/ohmyform-v3-gemini-3.1-flash-lite.json","output":"ohmyform-submission-start-v3-gemini-3.1-flash-lite"},{"name":"Mistral Small 2603","campaign":"campaigns/ohmyform-v3-mistral-small-2603.json","output":"ohmyform-submission-start-v3-mistral-small-2603"}]}
+            {"include":[{"name":"GPT-5.6 Luna","campaign":"campaigns/ohmyform-v4-gpt-5.6-luna.json","output":"ohmyform-submission-start-v4-gpt-5.6-luna"},{"name":"Gemini 3.1 Flash Lite","campaign":"campaigns/ohmyform-v4-gemini-3.1-flash-lite.json","output":"ohmyform-submission-start-v4-gemini-3.1-flash-lite"},{"name":"Mistral Small 2603","campaign":"campaigns/ohmyform-v4-mistral-small-2603.json","output":"ohmyform-submission-start-v4-mistral-small-2603"}]}
           INTERMEDIATE_MATRIX: >-
-            {"include":[{"name":"Claude Sonnet 5","campaign":"campaigns/ohmyform-v3-claude-sonnet-5.json","output":"ohmyform-submission-start-v3-claude-sonnet-5"},{"name":"GPT-5.6 Terra","campaign":"campaigns/ohmyform-v3.json","output":"ohmyform-submission-start-v3"},{"name":"Gemini 3.7 Flash","campaign":"campaigns/ohmyform-v3-gemini-3.7-flash.json","output":"ohmyform-submission-start-v3-gemini-3.7-flash"},{"name":"Mistral Medium 3.5","campaign":"campaigns/ohmyform-v3-mistral-medium-3-5.json","output":"ohmyform-submission-start-v3-mistral-medium-3-5"}]}
+            {"include":[{"name":"Claude Sonnet 5","campaign":"campaigns/ohmyform-v4-claude-sonnet-5.json","output":"ohmyform-submission-start-v4-claude-sonnet-5"},{"name":"GPT-5.6 Terra","campaign":"campaigns/ohmyform-v4.json","output":"ohmyform-submission-start-v4"},{"name":"Gemini 3.7 Flash","campaign":"campaigns/ohmyform-v4-gemini-3.7-flash.json","output":"ohmyform-submission-start-v4-gemini-3.7-flash"},{"name":"Mistral Medium 3.5","campaign":"campaigns/ohmyform-v4-mistral-medium-3-5.json","output":"ohmyform-submission-start-v4-mistral-medium-3-5"}]}
         run: |
           set -euo pipefail
           case "${BENCHMARK_TIER:-small}" in
@@ -147,8 +147,9 @@ jobs:
           mkdir -p .bench/targets .bench/dependencies
           git clone --filter=blob:none https://github.com/HoppR-tech/ccb-ohmyform.git .bench/targets/ccb-ohmyform
           git -C .bench/targets/ccb-ohmyform checkout --detach 0f602c646447cb8efc0ad346a2bf4869c30d2360
-          git clone --filter=blob:none --branch benchmark/ohmyform-v2 https://github.com/HoppR-tech/ccb-evaluator.git .bench/evaluator
-          git -C .bench/evaluator checkout --detach b022658fedc4c1e5463efceb755a96abde0fd4fe
+          git clone --filter=blob:none --branch benchmark/ohmyform-v3 https://github.com/HoppR-tech/ccb-evaluator.git .bench/evaluator
+          git -C .bench/evaluator checkout --detach ab7eec927b95f6a4b2d8ac4bcad4daf86b1a1acf
+          test "$(git -C .bench/evaluator rev-parse HEAD)" = "ab7eec927b95f6a4b2d8ac4bcad4daf86b1a1acf"
           npm ci --ignore-scripts --prefix .bench/evaluator
           mkdir -p .bench/dependencies/ohmyform-v1-api
           cp .bench/targets/ccb-ohmyform/api/package.json .bench/targets/ccb-ohmyform/api/yarn.lock .bench/dependencies/ohmyform-v1-api/

@@ -27,6 +27,8 @@ function outcomeRecord(pairId: string, condition: 'baseline' | 'grace', status: 
       toolUsage: [],
       toolUsageTruncated: false,
       recentToolCalls: [],
+      commandDiagnostics: [],
+      commandDiagnosticsTruncated: false,
       failure: failedAgent
         ? { schemaVersion: 1, code: status === 'agent_error' ? 'step_budget_exhausted' : 'agent_execution_failed', reason: status }
         : null,
@@ -172,6 +174,8 @@ test('runs paired conditions, gates before scoring, and preserves provenance', a
           toolUsage: [{ name: 'write_file', count: 1, errorCount: 0 }],
           toolUsageTruncated: false,
           recentToolCalls: [{ step: 1, name: 'write_file', outcome: 'ok' }],
+          commandDiagnostics: [],
+          commandDiagnosticsTruncated: false,
           failure: null,
         },
         model: 'fixture-model',
@@ -371,6 +375,8 @@ test('captures every non-scored outcome without allowing recovery failures to re
     toolUsage: [{ name: 'write_file', count: 1, errorCount: 0 }],
     toolUsageTruncated: false,
     recentToolCalls: [{ step: 1, name: 'write_file', outcome: 'ok' as const }],
+    commandDiagnostics: [],
+    commandDiagnosticsTruncated: false,
     failure: failure
       ? { schemaVersion: 1 as const, code: 'step_budget_exhausted' as const, reason: 'agent step budget exhausted' }
       : null,

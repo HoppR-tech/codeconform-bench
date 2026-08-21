@@ -109,7 +109,7 @@ Un candidat n’est qualifié que si son score pondéré atteint 70 % et si chaq
 
 Chaque tentative scorée porte le schéma de preuve v1. Une personne peut recalculer chaque contrôle, dimension, score global pondéré, décision de qualification et compteur de violations à partir d’identifiants stables et des points obtenus/maximaux. Les diagnostics inline sont relatifs au candidat, numérotés par ligne, expurgés et bornés pour l’affichage. Le JSON canonique de chaque run conserve tous les fichiers source/test évalués sous forme de contenu scoré complet et expurgé avec leur SHA-256 d’origine, chaque chemin de dépendance déterminant pour le score sans troncature de nœuds, et le graphe normalisé complet. Le rapport complet affiche une vue Mermaid bornée et renvoie vers cet artifact canonique.
 
-Les diagnostics d’exécution agent utilisent des codes d’échec stables et des compteurs bornés d’étapes, de requêtes et de noms d’outils ; ils ne publient jamais arguments, sorties d’outils ni traces du modèle. Les échecs d’assertion fonctionnelle conservent au plus 16 mismatches RFC 6901 déterministes et expurgées. Dès chaque retour de l’agent, avant toute gate ou évaluation, le harness prépare un artifact de récupération candidat borné contre le commit/tree cible. Une tentative scorée le supprime ; toute tentative non scorée publie cet état immuable ou une raison expurgée explicite `recovery_unavailable`. Chemins hôte, credentials, environnement, fichiers sensibles et traces du modèle en sont exclus ; toute récupération expurgée ou incomplète est qualifiée `sanitized/incomplete`, jamais de replay exact.
+Les diagnostics d’exécution agent utilisent des codes d’échec stables et des compteurs bornés d’étapes, de requêtes et de noms d’outils. Pour une commande de validation approuvée, seuls l’identifiant défini par le manifest, le code terminal, l’exit status ou le signal, l’état de timeout et une raison fixe expurgée sont publiés ; les sorties de commande, noms non approuvés, arguments et sorties d’outils ainsi que les traces du modèle restent exclus. Les échecs d’assertion fonctionnelle conservent au plus 16 mismatches RFC 6901 déterministes et expurgées. Dès chaque retour de l’agent, avant toute gate ou évaluation, le harness prépare un artifact de récupération candidat borné contre le commit/tree cible. Une tentative scorée le supprime ; toute tentative non scorée publie cet état immuable ou une raison expurgée explicite `recovery_unavailable`. Chemins hôte, credentials, environnement, fichiers sensibles et traces du modèle en sont exclus ; toute récupération expurgée ou incomplète est qualifiée `sanitized/incomplete`, jamais de replay exact.
 
 La matrice prévue couvre Java/Kotlin, C#/.NET, TypeScript, Python et Go.
 
@@ -127,7 +127,7 @@ Le benchmark vérifie un comportement observable, pas la résistance à un progr
 
 ## État et vérification
 
-La première tranche de protocole v3 est `campaigns/ohmyform-v3.json` : trois tentatives pass@1 appariées sur la tâche OhMyForm submission-start épinglée, avec 120 étapes agent et des critères sémantiques observables explicites. Le schéma de manifest v2 et le rule pack `ohmyform-v2` restent inchangés. Le harness public, le parseur strict, la boucle d’outils OpenRouter, l’exécuteur Docker, la gate fonctionnelle, l’évaluateur multidimensionnel, le contrat de preuves de score réconciliées, l’agrégation appariée qui tient compte des échecs et les preuves de provenance sont implémentés.
+La tranche courante de protocole v4 est `campaigns/ohmyform-v4.json` : trois tentatives pass@1 appariées sur la tâche OhMyForm submission-start épinglée, avec 120 étapes agent et des critères fonctionnels et de composition explicites. La gate appelle désormais le `StartSubmissionUseCase` enregistré et l’adaptateur d’interface GraphQL enregistré, et exige l’adaptateur d’infrastructure submission au composition root au lieu d’appeler le `SubmissionStartService` supprimé ; le rule pack `ohmyform-v3` accepte les organisations clean architecture layer-first et feature-first sans imposer de façade legacy. Le schéma de manifest v2 reste inchangé. Les résultats du protocole v3 restent des preuves historiques et ne doivent pas être agrégés avec v4 puisque la gate et la grille ont changé. Le harness public, le parseur strict, la boucle d’outils OpenRouter, l’exécuteur Docker, la gate fonctionnelle, l’évaluateur multidimensionnel, le contrat de preuves de score réconciliées, l’agrégation appariée qui tient compte des échecs et les preuves de provenance sont implémentés.
 
 ```sh
 npm ci --ignore-scripts
@@ -141,7 +141,7 @@ Les agents de code locaux lisent `.mcp.json` et effectuent l’OAuth Grace lors 
 
 ### Première cible de benchmark
 
-Le checkout OhMyForm audité et la campagne sont épinglés dans `campaigns/ohmyform-v3.json`.
+Le checkout OhMyForm audité et la campagne sont épinglés dans `campaigns/ohmyform-v4.json`.
 
 #### Architecture actuelle et état d’OhMyForm
 

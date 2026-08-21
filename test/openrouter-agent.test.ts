@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { ConnectionError, RequestTimeoutError } from '@openrouter/sdk/models/errors'
-import type { CandidateTools } from '../src/candidate-tools.js'
+import { CandidateTools } from '../src/candidate-tools.js'
 import { GraceToolInputError, type GraceTools } from '../src/grace-mcp.js'
 import { OpenRouterAgent } from '../src/openrouter-agent.js'
 
@@ -839,4 +839,69 @@ test('caps tool usage aggregates at sixty-four registered names', async () => {
   assert.equal(result.execution.toolUsageTruncated, true)
   assert.deepEqual(result.execution.toolUsage.map(({ name }) => name), names.slice(0, 64))
   assert.deepEqual(result.execution.recentToolCalls.map(({ name }) => name), names.slice(-8))
+})
+
+test('publishes bounded approved-command diagnostics without command output', async () => {
+  const agent = new OpenRouterAgent('fixture-key', {
+    id: 'fixture-model',
+    providerOrder: ['fixture-provider'],
+    allowFallbacks: false,
+    maxTokens: 10_000,
+  }, { maxSteps: 2, maxCostUsd: 30, maxTotalTokens: 100_000, maxToolOutputBytes: 10_000 })
+  let requests = 0
+  Object.defineProperty(agent, 'client', { value: {
+    chat: {
+      send: async () => {
+        requests += 1
+        return {
+          model: 'fixture-model',
+          choices: [{
+            message: requests === 1
+              ? {
+                  role: 'assistant',
+                  content: null,
+                  toolCalls: Array.from({ length: 5 }, (_, index) => ({
+                    id: `command-${index}`,
+                    type: 'function',
+                    function: { name: 'run_command', arguments: '{\"name\":\"api-check\"}' },
+                  })),
+                }
+              : { role: 'assistant', content: 'done' },
+          }],
+          usage: { promptTokens: 10, completionTokens: 5, cost: 0.01 },
+        }
+      },
+    },
+  } })
+  const tools = new CandidateTools('/tmp', async () => ({
+    exitCode: 7,
+    signal: null,
+    stdout: 'token=\"secret-value-that-must-not-be-published\"',
+    stderr: '/Users/private/workspace',
+    timedOut: false,
+  }), new Set(['api-check']))
+
+  const result = await agent.run({
+    condition: 'baseline',
+    pairId: 'pair-01',
+    workspace: '/tmp/candidate',
+    task: { id: 'fixture', prompt: 'Refactor.' },
+  }, tools)
+
+  assert.equal(result.status, 'completed')
+  assert.equal(result.execution.commandDiagnostics.length, 4)
+  assert.equal(result.execution.commandDiagnosticsTruncated, true)
+  assert.deepEqual(result.execution.commandDiagnostics[0], {
+    schemaVersion: 1,
+    step: 1,
+    command: 'api-check',
+    code: 'command_exit',
+    exitCode: 7,
+    signal: null,
+    timedOut: false,
+    reason: 'approved command exited non-zero',
+  })
+  assert.equal(result.execution.commandDiagnostics[1]?.code, 'command_limit_exceeded')
+  assert.equal(result.execution.toolUsage[0]?.errorCount, 4)
+  assert.doesNotMatch(JSON.stringify(result.execution), /secret-value|\/Users|workspace/)
 })

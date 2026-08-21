@@ -18,6 +18,8 @@ function record(condition: 'baseline' | 'grace', promptTokens: number, completio
       toolUsage: [{ name: 'read_file', count: 1, errorCount: 0 }],
       toolUsageTruncated: false,
       recentToolCalls: [{ step: 1, name: 'read_file', outcome: 'ok' }],
+      commandDiagnostics: [],
+      commandDiagnosticsTruncated: false,
       failure: null,
     },
     targetCommit: 'a'.repeat(40),
@@ -291,6 +293,17 @@ test('keeps six maximal failure diagnostics below the job summary limit', () => 
         name: `tool_${String(activity).padStart(2, '0')}`,
         outcome: activity % 3 === 0 ? 'execution_error' : 'ok',
       })),
+      commandDiagnostics: [{
+        schemaVersion: 1,
+        step: 118,
+        command: 'api-check',
+        code: 'command_exit',
+        exitCode: 1,
+        signal: null,
+        timedOut: false,
+        reason: 'approved command exited non-zero',
+      }],
+      commandDiagnosticsTruncated: false,
       failure: {
         schemaVersion: 1,
         code: 'step_budget_exhausted',
@@ -337,6 +350,9 @@ test('keeps six maximal failure diagnostics below the job summary limit', () => 
   assert.equal(records.every((attempt) => attempt.agentExecution.recentToolCalls.length === 8), true)
   assert.equal(records.every((attempt) => attempt.functionalGate?.evidence?.mismatches.length === 16), true)
   assert.match(report, /tool aggregates truncated/)
+  assert.match(report, /Approved command diagnostics \(1 retained\)/)
+  assert.match(report, /\| 118 \| api-check \| command_exit \| 1 \|/)
+  assert.match(summary, /118:api-check\/command_exit\/exit 1/)
   assert.match(summary, /16\/24 shown; truncated/)
   assert.match(summary, /sanitized\/incomplete/)
   assert.doesNotMatch(`${report}\n${summary}`, /tool arguments leak sentinel|tool output leak sentinel|model trace leak sentinel/)

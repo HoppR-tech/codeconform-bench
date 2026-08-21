@@ -18,6 +18,19 @@ const expected = {
     ipAnonymized: true,
   },
   anonymous: { userRemoved: true, missingIp: '?' },
+  composition: {
+    useCaseRegistered: true,
+    infrastructureRegistered: true,
+    resolverRegistered: true,
+    adapterInvoked: true,
+    formForwarded: true,
+    userForwarded: true,
+    tokenForwarded: true,
+    deviceForwarded: true,
+    ipForwarded: true,
+    cacheUpdated: true,
+    progressReturned: true,
+  },
 }
 
 const MAX_PROBE_PAYLOAD_BYTES = 256 * 1024

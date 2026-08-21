@@ -97,6 +97,18 @@ function renderAttemptDiagnostics(record: RunRecord, recentLimit = 8): string[] 
         ...recent.map((activity) => `| ${activity.step} | ${cell(activity.name)} | ${activity.outcome} |`),
         '',
       ]),
+    ...(execution.commandDiagnostics.length === 0
+      ? ['Approved command diagnostics: none.', '']
+      : [
+        `Approved command diagnostics (${execution.commandDiagnostics.length} retained${execution.commandDiagnosticsTruncated ? '; truncated' : ''}):`,
+        '',
+        '| Step | Command | Result | Exit | Signal | Timed out | Reason |',
+        '| ---: | --- | --- | ---: | --- | --- | --- |',
+        ...execution.commandDiagnostics.map((diagnostic) =>
+          `| ${diagnostic.step} | ${cell(diagnostic.command)} | ${diagnostic.code} | ${value(diagnostic.exitCode)} | ${cell(diagnostic.signal)} | ${diagnostic.timedOut ? 'yes' : 'no'} | ${cell(diagnostic.reason)} |`
+        ),
+        '',
+      ]),
     ...(gateEvidence === null
       ? []
       : [
@@ -123,9 +135,17 @@ function renderSummaryAttemptDiagnostics(record: RunRecord): string[] {
   const activities = recent.length === 0
     ? 'none'
     : recent.map((activity) => `${activity.step}:${cell(activity.name)}/${activity.outcome}`).join(', ')
+  const commands = execution.commandDiagnostics.length === 0
+    ? 'none'
+    : execution.commandDiagnostics.map((diagnostic) => {
+      const terminal = diagnostic.exitCode === null
+        ? diagnostic.signal ?? ''
+        : `exit ${diagnostic.exitCode}`
+      return `${diagnostic.step}:${cell(diagnostic.command)}/${diagnostic.code}${terminal ? `/${cell(terminal)}` : ''}`
+    }).join(', ')
   if (record.status === 'scored') {
     return [
-      `- Agent: ${execution.stepsUsed}/${execution.maxSteps} steps; ${execution.requestAttempts} requests; ${execution.toolCalls} tools [${tools}]; recent ${recent.length}/${execution.recentToolCalls.length} [${activities}]; recovery discarded (scored).`,
+      `- Agent: ${execution.stepsUsed}/${execution.maxSteps} steps; ${execution.requestAttempts} requests; ${execution.toolCalls} tools [${tools}]; recent ${recent.length}/${execution.recentToolCalls.length} [${activities}]; commands [${commands}]${execution.commandDiagnosticsTruncated ? ' (truncated)' : ''}; recovery discarded (scored).`,
       '',
     ]
   }
@@ -133,6 +153,7 @@ function renderSummaryAttemptDiagnostics(record: RunRecord): string[] {
     `- Agent execution: ${execution.stepsUsed}/${execution.maxSteps} steps; ${execution.requestAttempts} requests; ${execution.toolCalls} tool calls${execution.toolUsageTruncated ? '; aggregates truncated' : ''}${failure === null ? '' : `; \`${failure.code}\` — ${cell(failure.reason)}`}.`,
     `- Tool usage: ${tools}.`,
     `- Recent tool activity (${recent.length}/${execution.recentToolCalls.length} retained in summary): ${activities}.`,
+    `- Approved command diagnostics (${execution.commandDiagnostics.length} retained${execution.commandDiagnosticsTruncated ? '; truncated' : ''}): ${commands}.`,
     `- ${recoveryLine(record)}`,
     '',
     ...(gateEvidence === null
@@ -351,7 +372,7 @@ export function renderCampaignReport(
     '',
     '## Raw scoring evidence',
     '',
-    'Evidence is generated only after the agent finishes. Reports retain bounded agent counters, tool-name activity, functional mismatches, evaluator diagnostics, and sanitized candidate recovery references. They never include tool arguments, tool outputs, or complete model traces; `runs/*-trace.json` remains local.',
+    'Evidence is generated only after the agent finishes. Reports retain bounded agent counters, tool-name activity, approved-command identifiers and terminal outcomes, functional mismatches, evaluator diagnostics, and sanitized candidate recovery references. They never include tool arguments, command output, complete model traces, or unapproved command names; `runs/*-trace.json` remains local.',
     '',
     ...records.flatMap(renderRunEvidence),
   ]

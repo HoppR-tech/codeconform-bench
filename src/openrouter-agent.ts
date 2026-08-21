@@ -1,9 +1,9 @@
 import { OpenRouter } from '@openrouter/sdk'
 import { ConnectionError, RequestTimeoutError } from '@openrouter/sdk/models/errors'
 import type { ChatMessages } from '@openrouter/sdk/models'
-import { candidateToolDefinitions, CandidateTools } from './candidate-tools.js'
+import { CandidateCommandError, candidateToolDefinitions, CandidateTools, type CandidateCommandDiagnostic } from './candidate-tools.js'
 import { GraceToolInputError, type GraceTools } from './grace-mcp.js'
-import { AGENT_DIAGNOSTIC_SCHEMA_VERSION, type AgentExecutionSummary, type AgentFailureCode, type AgentInput, type AgentOutput, type AgentToolActivity, type AgentToolUsage, type CampaignManifest } from './contracts.js'
+import { COMMAND_DIAGNOSTIC_SCHEMA_VERSION, AGENT_DIAGNOSTIC_SCHEMA_VERSION, type AgentCommandDiagnostic, type AgentExecutionSummary, type AgentFailureCode, type AgentInput, type AgentOutput, type AgentToolActivity, type AgentToolUsage, type CampaignManifest } from './contracts.js'
 import { safeReason, sanitizeText } from './safe-diagnostics.js'
 
 const SYSTEM_PROMPT = `You are editing one candidate repository for a code-quality benchmark.
@@ -16,6 +16,7 @@ const MAX_RETRY_ELAPSED_MS = 120_000
 const SDK_REQUEST_OPTIONS = { retries: { strategy: 'none' as const } }
 const MAX_TOOL_USAGE_ENTRIES = 64
 const MAX_RECENT_TOOL_CALLS = 8
+const MAX_COMMAND_DIAGNOSTICS = 4
 const UNKNOWN_TOOL_NAME = '[unknown-tool]'
 const CLOSURE_NOTICES = new Map<number, string>([
   [20, 'Harness notice: 20 model steps remain. Stop broad exploration; complete the smallest correct change, run the approved validation command if it has not run, then finish with a concise response without tool calls.'],
@@ -67,6 +68,8 @@ function executionSummary(
     toolUsage: Map<string, AgentToolUsage>
     toolUsageTruncated: boolean
     recentToolCalls: AgentToolActivity[]
+    commandDiagnostics: AgentCommandDiagnostic[]
+    commandDiagnosticsTruncated: boolean
   },
   failure: AgentFailureError | null,
 ): AgentExecutionSummary {
@@ -78,6 +81,8 @@ function executionSummary(
     toolUsage: [...counters.toolUsage.values()].sort((left, right) => left.name.localeCompare(right.name)),
     toolUsageTruncated: counters.toolUsageTruncated,
     recentToolCalls: counters.recentToolCalls,
+    commandDiagnostics: counters.commandDiagnostics,
+    commandDiagnosticsTruncated: counters.commandDiagnosticsTruncated,
     failure: failure === null
       ? null
       : {
@@ -189,6 +194,8 @@ export class OpenRouterAgent {
       toolUsage: new Map<string, AgentToolUsage>(),
       toolUsageTruncated: false,
       recentToolCalls: [] as AgentToolActivity[],
+      commandDiagnostics: [] as AgentCommandDiagnostic[],
+      commandDiagnosticsTruncated: false,
     }
     const recordToolActivity = (activity: AgentToolActivity): void => {
       counters.toolCalls += 1
@@ -207,6 +214,17 @@ export class OpenRouterAgent {
       }
       counters.recentToolCalls.push(activity)
       if (counters.recentToolCalls.length > MAX_RECENT_TOOL_CALLS) counters.recentToolCalls.shift()
+    }
+    const recordCommandDiagnostic = (step: number, diagnostic: CandidateCommandDiagnostic): void => {
+      if (counters.commandDiagnostics.length >= MAX_COMMAND_DIAGNOSTICS) {
+        counters.commandDiagnosticsTruncated = true
+        return
+      }
+      counters.commandDiagnostics.push({
+        schemaVersion: COMMAND_DIAGNOSTIC_SCHEMA_VERSION,
+        step,
+        ...diagnostic,
+      })
     }
 
     try {
@@ -334,8 +352,12 @@ export class OpenRouterAgent {
           } else {
             try {
               content = await tools.execute(call.function.name, call.function.arguments)
+              if (typeof tools.takeCommandDiagnostics === 'function') {
+                for (const diagnostic of tools.takeCommandDiagnostics()) recordCommandDiagnostic(step, diagnostic)
+              }
               recordToolActivity({ step, name, outcome: 'ok' })
             } catch (error) {
+              if (error instanceof CandidateCommandError) recordCommandDiagnostic(step, error.diagnostic)
               recordToolActivity({ step, name, outcome: 'execution_error' })
               content = JSON.stringify({ error: error instanceof Error ? error.message : 'tool failed' })
             }

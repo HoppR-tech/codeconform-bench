@@ -208,6 +208,28 @@ export interface AgentToolActivity {
   outcome: 'ok' | 'input_error' | 'execution_error'
 }
 
+export const COMMAND_DIAGNOSTIC_SCHEMA_VERSION = 1 as const
+
+export type AgentCommandCode =
+  | 'passed'
+  | 'command_exit'
+  | 'command_signal'
+  | 'command_timeout'
+  | 'command_not_approved'
+  | 'command_limit_exceeded'
+  | 'command_execution_failed'
+
+export interface AgentCommandDiagnostic {
+  schemaVersion: typeof COMMAND_DIAGNOSTIC_SCHEMA_VERSION
+  step: number
+  command: string | null
+  code: AgentCommandCode
+  exitCode: number | null
+  signal: string | null
+  timedOut: boolean
+  reason: string | null
+}
+
 export interface AgentExecutionSummary {
   stepsUsed: number
   maxSteps: number
@@ -216,6 +238,8 @@ export interface AgentExecutionSummary {
   toolUsage: AgentToolUsage[]
   toolUsageTruncated: boolean
   recentToolCalls: AgentToolActivity[]
+  commandDiagnostics: AgentCommandDiagnostic[]
+  commandDiagnosticsTruncated: boolean
   failure: AgentFailureDiagnostic | null
 }
 

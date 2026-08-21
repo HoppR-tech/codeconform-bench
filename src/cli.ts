@@ -34,7 +34,11 @@ if (!manifestPath || process.argv.length !== 3) {
       },
       prepareWorkspace: (workspace) => targetVerifier.materialize(workspace),
       runAgent: async (input) => {
-        const tools = new CandidateTools(input.workspace, (name) => executor.runNamed(input.workspace, name))
+        const tools = new CandidateTools(
+          input.workspace,
+          (name) => executor.runNamed(input.workspace, name),
+          new Set(Object.keys(manifest.commandExecutor.commands)),
+        )
         if (input.condition === 'baseline') return agent.run(input, tools)
         const grace = await connectGraceMcp(manifest.grace.mcpUrl, graceToken)
         try {

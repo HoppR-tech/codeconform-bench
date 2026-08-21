@@ -191,6 +191,8 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
             toolUsage: [],
             toolUsageTruncated: false,
             recentToolCalls: [],
+            commandDiagnostics: [],
+            commandDiagnosticsTruncated: false,
             failure: {
               schemaVersion: AGENT_DIAGNOSTIC_SCHEMA_VERSION,
               code: 'agent_execution_failed',

@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 2,
+  "campaignId": "ohmyform-submission-start-v4-gemini-3.1-pro-preview",
+  "target": {
+    "checkout": "../.bench/targets/ccb-ohmyform",
+    "repository": "https://github.com/HoppR-tech/ccb-ohmyform.git",
+    "commit": "0f602c646447cb8efc0ad346a2bf4869c30d2360",
+    "tree": "48f9f6659f2e775c3b28bc51402e785f9e42553b",
+    "digest": "sha256:67d029e566ce918a0b4bf738b3535b8d2fc3f62e5ad6cea20040b20206d923ee"
+  },
+  "task": {
+    "id": "submission-start-code-quality-v4",
+    "prompt": "Refactor only the API submission-start vertical slice into clean architecture. Preserve the public GraphQL submissionStart contract and its current validation, token, cache, anonymization, persistence, and progress-result behavior. Introduce a domain-side submission persistence port, an application use case, a TypeORM infrastructure adapter, and a GraphQL interface adapter; wire them at the NestJS composition root. Complete the clean cutover: name the application class StartSubmissionUseCase with an execute(command) method; register it and the submission infrastructure adapter in app.providers; register the new GraphQL interface adapter in submissionResolvers; and remove SubmissionStartService and the legacy resolver mutation. Either layer-first paths such as application/submission or feature-first paths such as submission/application are accepted. Do not refactor unrelated submission features. Produce production-quality code: keep the new files cohesive and type-safe, avoid suppressed diagnostics, add focused tests for the application use case covering success and failure behavior, and do not introduce dynamic code execution or process-spawning APIs.\n\nPreserve these observable semantics: hash the input token through the injected hash dependency and store the returned hash; persist and return the exact submission instance passed to and returned from persistence; retain the form, user, and device for regular submissions; initialize elapsed time and completion percentage to zero; anonymize a supplied IP address; for anonymous submissions remove the user and apply the existing missing-IP fallback."
+  },
+  "repetitions": 3,
+  "order": [
+    "baseline",
+    "grace"
+  ],
+  "model": {
+    "id": "google/gemini-3.1-pro-preview",
+    "providerOrder": [
+      "google-vertex"
+    ],
+    "allowFallbacks": false,
+    "reasoningEffort": "high",
+    "maxTokens": 32000
+  },
+  "agent": {
+    "maxSteps": 120,
+    "maxCostUsd": 30,
+    "maxTotalTokens": 5000000,
+    "maxToolOutputBytes": 524288
+  },
+  "commandExecutor": {
+    "image": "node@sha256:cd59a61258b82b86c1ff0ead50c8a689f6c3483c5ed21036e11ee741add419eb",
+    "commands": {
+      "api-check": [
+        "yarn",
+        "--cwd",
+        "api",
+        "test",
+        "--runInBand"
+      ]
+    },
+    "readOnlyMounts": [
+      {
+        "source": "../.bench/dependencies/ohmyform-v1-api/node_modules",
+        "target": "/workspace/api/node_modules",
+        "digest": "sha256:95062d19c65ef195bd8d07a7b60c96e15ccf90cccc49b2f0b71500c6aca5e6eb"
+      }
+    ]
+  },
+  "functionalGate": {
+    "command": [
+      "node",
+      "/opt/ccb/probe/probe.cjs"
+    ],
+    "readOnlyMounts": [
+      {
+        "source": "../gates/ohmyform-v2",
+        "target": "/opt/ccb/probe",
+        "digest": "sha256:38469e4ec00ab47d2ae5c9ae375c6c4b907100e99476e493c1e7252c130f4639"
+      }
+    ]
+  },
+  "evaluator": {
+    "runner": {
+      "path": "../.bench/evaluator/runners/typescript/evaluate.mjs",
+      "digest": "sha256:7388ec346e10e6706403a451d371f0c508bdfc99c4940614ac24928973318352"
+    },
+    "command": [
+      "node",
+      "{runner}",
+      "--candidate",
+      "{candidate}",
+      "--rule-config",
+      "{rulePack}",
+      "--result",
+      "{result}"
+    ],
+    "rulePack": {
+      "id": "ohmyform-v3",
+      "version": "4",
+      "digest": "sha256:c30fa546600a61387552db5d0088a117d56697d5df1cf0b162e3b1a81fd1b487",
+      "path": "../.bench/evaluator/rule-packs/typescript/ohmyform-v3/dependency-cruiser.config.cjs"
+    }
+  },
+  "grace": {
+    "mcpUrl": "https://grace-mcp.hoppr.tech/mcp/ccb-benchmark-8169",
+    "tokenEnv": "GRACE_MCP_TOKEN"
+  },
+  "outputDirectory": "../.bench/results/ohmyform-submission-start-v4-gemini-3.1-pro-preview",
+  "bootstrapSamples": 10000,
+  "seed": 20260818
+}
