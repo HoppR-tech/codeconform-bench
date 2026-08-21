@@ -13,7 +13,7 @@ For every task, CCB runs the same model under the same conditions twice:
 - **Baseline** — the model works without Grace.
 - **Grace** — the same model works with Grace.
 
-The benchmark first applies an immutable functional gate outside the candidate checkout. Functional and agent failures receive a zero code-quality score. Functional candidates are then evaluated by isolated, deterministic rules covering architecture, maintainability, clarity, tests, and robustness.
+The benchmark first applies an immutable functional gate outside the candidate checkout. Once a condition has at least one genuinely scored attempt, functional and agent failures contribute zero to its end-to-end code-quality mean. If nothing was scored, quality and confidence data remain unavailable rather than appearing as zero. Functional candidates are then evaluated by isolated, deterministic rules covering architecture, maintainability, clarity, tests, and robustness.
 
 CCB is designed to make model code quality and the effect of Grace measurable, reproducible, and falsifiable.
 
@@ -23,11 +23,11 @@ CCB reports:
 
 - **Functional pass@1** — the share of valid first attempts that preserve the pinned behavior.
 - **Quality-qualified pass@1** — the share that also clears the versioned overall and per-dimension quality thresholds.
-- **Code Quality Score** — the mean end-to-end score across architecture, maintainability, clarity, tests, and robustness; functional and agent failures count as zero.
+- **Code Quality Score** — the mean end-to-end score across architecture, maintainability, clarity, tests, and robustness; candidate failures count as zero only when the condition includes a genuinely scored attempt.
 - **Grace delta** — the paired difference between Grace and baseline for the same model, task, and attempt.
 - **Efficiency** — tokens, cost, latency, and quality gain per additional 1,000 tokens, reported separately from capability.
-- **Reliability** — candidate failures remain scored outcomes; provider, harness, and evaluator infrastructure failures are excluded and reported explicitly.
-- **Raw scoring evidence** — versioned per-check points, thresholds, candidate-relative `file:line` snippets, evaluated-file metrics, dependency paths, and structure used to justify every score.
+- **Reliability** — candidate failures remain scored outcomes when scoring exists; provider, harness, and evaluator infrastructure failures are excluded and reported with stable phase/reason codes.
+- **Raw scoring evidence** — versioned per-check points, thresholds, candidate-relative `file:line` snippets, evaluated-file metrics, dependency paths, and structure used to justify every score; evaluator failures retain bounded sanitized result/process diagnostics and a redacted candidate recovery patch for offline rescoring.
 
 The current OhMyForm slice is a single-task case study. Cross-model generalization requires a larger, versioned task suite with equal task weighting.
 
@@ -54,7 +54,7 @@ The protocol is fixed and published before benchmark runs:
 3. The model receives the functional and code-quality intent, but never the executable assertions.
 4. Each condition is repeated three times and aggregated as pass@1 attempts.
 5. The evaluator runs separately from the agent workspace; its rules are not available to the model.
-6. Results include means, paired confidence intervals, dimension scores, versioned raw per-check evidence, source citations, dependency structure, raw run data, and exact model versions.
+6. Results include means, paired confidence intervals only when genuine scores exist, dimension scores, versioned raw per-check evidence, source citations, dependency structure, raw run data, scored-attempt counts, and exact model versions.
 
 ## Implemented benchmark architecture
 
@@ -79,7 +79,7 @@ flowchart LR
     E --> R[Aggregate, evidence, and provenance]
 ```
 
-Baseline/Grace execution order is counterbalanced between pairs. Functional and agent failures count as zero; provider, harness, and evaluator infrastructure failures are excluded from applicable denominators and reported explicitly. Grace deltas use every pair with valid measurements on both sides.
+Baseline/Grace execution order is counterbalanced between pairs. Candidate failures contribute zero only after the same condition has at least one genuinely scored attempt; with no score, quality metrics and confidence intervals are unavailable. Provider, harness, and evaluator infrastructure failures are excluded from applicable denominators and reported explicitly. Grace deltas use every pair with valid measurements on both sides once the campaign has genuine scoring data.
 
 ## Initial model matrix
 
@@ -109,7 +109,9 @@ A candidate is quality-qualified only if its weighted score reaches 70% and ever
 
 Every scored attempt carries evidence schema v1. A human can recompute each check, dimension, weighted overall score, qualification decision, and violation count from stable check IDs and earned/maximum points. Inline diagnostics are candidate-relative, line-numbered, redacted, and bounded for display. Canonical per-run JSON preserves every evaluated source/test file as complete redacted scored-source content with its original SHA-256 digest, every score-determining dependency path without node truncation, and the complete normalized graph. The full report renders a bounded Mermaid view and points back to that canonical artifact.
 
-Evidence schema v1 accepts five non-empty dimensions and at most 35 unique checks total per run. That budget matches the official TypeScript evaluator and guarantees that all six accepted attempts can show every check row in the bounded Job Summary; over-budget evaluator output is rejected before campaign persistence.
+Evaluator failures use diagnostic schema v1: a stable phase/code plus bounded redacted reason, process exit/signal/timeout/stderr when applicable, and validation path for rejected result schemas. Immediately after the agent completes—and before either trusted consumer can touch the workspace—the harness stages a bounded candidate-relative recovery patch against the pinned target commit/tree. It publishes that immutable patch for evaluator failures or detected consumer mutation, so its content and `candidateDigest` always describe the agent candidate rather than later mutations. Sensitive paths, host paths, credentials, environment data, and model traces are excluded.
+
+Evidence schema v1 accepts five non-empty dimensions and at most 35 unique checks total per run. That budget matches the official TypeScript evaluator and guarantees that all six accepted attempts can show every check row in the bounded Job Summary; over-budget evaluator output fails with a path-bearing `result_schema_invalid` diagnostic before campaign persistence.
 
 The planned language matrix includes Java/Kotlin, C#/.NET, TypeScript, Python, and Go.
 
@@ -121,7 +123,7 @@ CCB treats evaluation isolation as a core property:
 - the model receives no shell, web/search/fetch tool, evaluator path, or credential;
 - candidate commands run in Docker with `--network none`, a read-only workspace and digest-verified dependency mounts, bounded resources, one validation-command call, and no Docker socket;
 - target commit/tree and materialized-export digest, Grace MCP endpoint, dependency/probe mount digests, container image, evaluator runner, rule pack, provider policy, prompts, candidate artifacts, and traces are pinned or content-digested;
-- the evaluator emits aggregate scores plus complete canonical proof only after the agent finishes; neither the rules nor the evidence are sent back to the model, raw analyzer output with host/environment details is discarded, realistic credentials are redacted, and an evidence size overflow fails as `evaluator_error` instead of producing an unsupported score.
+- the evaluator emits aggregate scores plus complete canonical proof only after the agent finishes; neither the rules nor the evidence are sent back to the model, raw analyzer output with host/environment details is discarded, realistic credentials are redacted, and failures emit the bounded diagnostic/recovery artifacts described above instead of an unsupported score.
 
 The benchmark tests observable behavior, not resistance to a deliberately test-aware program. The agent never receives the final probe or assertions; runtime code that intentionally detects and special-cases the validation environment is outside the experimental threat model.
 
@@ -132,9 +134,12 @@ The first v2 slice is `campaigns/ohmyform-v2.json`: three paired pass@1 attempts
 ```sh
 npm ci --ignore-scripts
 npm test
+npm run preflight:evaluator -- /absolute/path/to/campaign.json /absolute/path/to/ccb-evaluator/test/fixtures
 ```
 
-Local coding agents read `.mcp.json` and complete Grace OAuth on their first connection. Paid campaigns run through `.github/workflows/benchmarks.yml`; because GitHub Actions is non-interactive, it uses the repository’s `OPENROUTER_API_KEY` and `GRACE_MCP_TOKEN` secrets instead. Only Grace runs connect to the configured Grace SaaS MCP; baseline runs receive neither its instructions nor its tools. Harness checks and each benchmark appear as separate jobs in the GitHub Actions graph. Campaigns are fixed at three paired repetitions. Every benchmark publishes a deterministic Job Summary under 128 KiB containing aggregate and dimension reconciliation, every raw check row, first source/path evidence, truthful Mermaid projections, and canonical artifact pointers. The 30-day artifact attaches `summary.md`, the complete `report.md`, `aggregate.json`, `campaign-manifest.json`, and canonical per-run scored-source/graph evidence. Candidate workspaces and raw model traces are never uploaded. See `docs/ia/benchmark-bootstrap/user-guide.md` for the exact retest sequence.
+The evaluator preflight is unpaid. CI checks out the exact evaluator commit, verifies the manifest digests, and sends both passing and failing fixtures through the production `ProcessEvaluator` before any benchmark job can read credentials or contact a model provider.
+
+Local coding agents read `.mcp.json` and complete Grace OAuth on their first connection. Paid campaigns run through `.github/workflows/benchmarks.yml`; because GitHub Actions is non-interactive, it uses the repository’s `OPENROUTER_API_KEY` and `GRACE_MCP_TOKEN` secrets instead. Only Grace runs connect to the configured Grace SaaS MCP; baseline runs receive neither its instructions nor its tools. Harness checks, the unpaid evaluator preflight, and each benchmark appear as separate jobs in the GitHub Actions graph. Campaigns are fixed at three paired repetitions. Every benchmark publishes a deterministic Job Summary under 128 KiB plus canonical run data, bounded evaluator failure diagnostics, and candidate recovery patches; full model traces are excluded from published artifacts.
 
 ### First documented benchmark target
 

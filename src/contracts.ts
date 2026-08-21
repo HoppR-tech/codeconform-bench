@@ -203,8 +203,72 @@ export interface CommandResult {
   timedOut: boolean
 }
 
+export type FunctionalGatePhase = 'command' | 'probe' | 'assertion' | 'candidate_integrity'
+export type FunctionalGateCode =
+  | 'passed'
+  | 'command_exit'
+  | 'command_signal'
+  | 'command_timeout'
+  | 'probe_ready_missing'
+  | 'probe_nonce_invalid'
+  | 'probe_result_missing'
+  | 'probe_payload_invalid'
+  | 'assertion_mismatch'
+  | 'candidate_mutated'
+
 export interface FunctionalGateResult {
   passed: boolean
+  phase: FunctionalGatePhase
+  code: FunctionalGateCode
+  detail: string | null
+}
+
+export const EVALUATOR_FAILURE_SCHEMA_VERSION = 1 as const
+export type EvaluatorFailurePhase =
+  | 'integrity'
+  | 'command'
+  | 'process'
+  | 'result_read'
+  | 'result_parse'
+  | 'result_schema'
+  | 'candidate_inspection'
+  | 'rule_pack'
+  | 'dependency_analysis'
+  | 'source_analysis'
+  | 'serialization'
+  | 'internal'
+
+export type EvaluatorFailureCode =
+  | 'runner_digest_mismatch'
+  | 'rule_pack_digest_mismatch'
+  | 'command_missing'
+  | 'process_timeout'
+  | 'process_signal'
+  | 'process_exit'
+  | 'result_missing'
+  | 'result_too_large'
+  | 'result_invalid_json'
+  | 'result_schema_invalid'
+  | 'candidate_access_failed'
+  | 'candidate_tree_invalid'
+  | 'candidate_path_invalid'
+  | 'candidate_limits_exceeded'
+  | 'rule_pack_invalid'
+  | 'dependency_analysis_failed'
+  | 'source_analysis_failed'
+  | 'serialization_failed'
+  | 'internal_error'
+
+export interface EvaluatorFailureDiagnostic {
+  schemaVersion: typeof EVALUATOR_FAILURE_SCHEMA_VERSION
+  phase: EvaluatorFailurePhase
+  code: EvaluatorFailureCode
+  reason: string
+  exitCode?: number | null
+  signal?: string | null
+  timedOut?: boolean
+  stderr?: string
+  schemaPath?: string
 }
 
 export type EvaluatorResult =
@@ -216,7 +280,7 @@ export type EvaluatorResult =
     dimensions: QualityDimensions
     evidence: QualityEvidence
   }
-  | { status: 'evaluator_error' }
+  | { status: 'evaluator_error'; diagnostic: EvaluatorFailureDiagnostic }
 
 export interface RunRecord {
   pairId: string
@@ -232,7 +296,8 @@ export interface RunRecord {
   promptTokens: number
   completionTokens: number
   cost: number | null
-  functionalGatePassed: boolean | null
+  functionalGate: FunctionalGateResult | null
+  evaluatorFailure: EvaluatorFailureDiagnostic | null
   durationMs: number
   codeQualityScore: number | null
   qualityQualified: boolean | null
@@ -252,6 +317,7 @@ export interface CampaignPorts {
 export interface ConditionSummary {
   total: number
   validFunctionalAttempts: number
+  scoredAttempts: number
   validQualityAttempts: number
   functionalPasses: number
   qualityPasses: number

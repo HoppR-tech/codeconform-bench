@@ -20,7 +20,8 @@ function record(condition: 'baseline' | 'grace', promptTokens: number, completio
     promptTokens,
     completionTokens,
     cost,
-    functionalGatePassed: true,
+    functionalGate: { passed: true, phase: 'assertion', code: 'passed', detail: null },
+    evaluatorFailure: null,
     durationMs: 100,
     codeQualityScore: qualityScore,
     qualityQualified: qualityScore >= 0.7,
@@ -45,7 +46,7 @@ test('reports per-job OpenRouter consumption and detailed paired results', () =>
   assert.match(report, /Mean code-quality delta: 60\.0%/)
   assert.match(report, /Quality-qualified pass@1 delta: 100\.0%/)
   assert.ok(report.includes(String.raw`\[details\]\(https://example.invalid\) \| failed`))
-  assert.match(report, /\| pair-01 \| grace \| scored \| fixture-model \| fixture-provider \| 150 \| \$0\.200000 \| pass \| yes \| 80\.0% \|/)
+  assert.match(report, /\| pair-01 \| grace \| scored \| fixture-model \| fixture-provider \| 150 \| \$0\.200000 \| pass · assertion\/passed \| — \| yes \| 80\.0% \|/)
   assert.match(report, /Grace MCP: https:\/\/grace\.example\/mcp/)
   assert.match(report, /### Aggregate score reconciliation/)
   assert.match(report, /\| baseline \| 20\.0% \| 20\.0% \| 20\.0% \|/)
@@ -79,16 +80,48 @@ test('marks failed runs as not evaluated and renders candidate snippets as inert
   evaluatorError.qualityDimensions = null
   evaluatorError.violations = null
   evaluatorError.qualityEvidence = null
+  evaluatorError.evaluatorFailure = {
+    schemaVersion: 1,
+    phase: 'result_schema',
+    code: 'result_schema_invalid',
+    reason: 'expected bounded number',
+    schemaPath: '$.qualityScore',
+  }
   const records = [failed, scored, evaluatorError]
   const report = renderCampaignReport('fixture-v2', 'sha256:' + 'f'.repeat(64), 'https://grace.example/mcp', records, aggregateRecords(records, 100, 7))
 
   assert.match(report, /Scoring evidence: \*\*not evaluated\*\* \(run status: `functional_failed`\)/)
-  assert.match(report, /Evaluation was attempted, but scoring evidence is unavailable or invalid\./)
+  assert.match(report, /Evaluation failed at `result_schema` with `result_schema_invalid`: expected bounded number \(schema path `\$\.qualityScore`\)\./)
   assert.ok(!report.includes('<script>'))
   assert.ok(report.includes(String.raw`\| \<script\>alert\(1\)\</script\> ::warning::`))
   const summary = renderCampaignSummary('fixture-v2', 'sha256:' + 'f'.repeat(64), records, aggregateRecords(records, 100, 7))
   assert.match(summary, /Scoring evidence: \*\*not evaluated\*\* \(run status: `functional_failed`\)/)
-  assert.match(summary, /Evaluation was attempted, but scoring evidence is unavailable or invalid\./)
+  assert.match(summary, /Evaluation failed: `result_schema\/result_schema_invalid` — expected bounded number \(schema path `\$\.qualityScore`\)\./)
+})
+
+test('renders no-score quality and confidence data as unavailable', () => {
+  const baseline = record('baseline', 10, 5, 0.01, 0.2)
+  const grace = record('grace', 10, 5, 0.01, 0.8)
+  for (const attempt of [baseline, grace]) {
+    attempt.status = 'functional_failed'
+    attempt.functionalGate = { passed: false, phase: 'assertion', code: 'assertion_mismatch', detail: 'fixture mismatch' }
+    attempt.codeQualityScore = null
+    attempt.qualityQualified = null
+    attempt.qualityDimensions = null
+    attempt.violations = null
+    attempt.qualityEvidence = null
+  }
+  const report = renderCampaignReport(
+    'fixture-v2',
+    'sha256:' + 'f'.repeat(64),
+    'https://grace.example/mcp',
+    [baseline, grace],
+    aggregateRecords([baseline, grace], 100, 7),
+  )
+  assert.match(report, /\| baseline \| 1 \| 0 \| 0 \| 0\.0% \| — \| — \|/)
+  assert.match(report, /\| baseline \| — \| — \| — \|/)
+  assert.match(report, /Paired bootstrap 95% interval: —/)
+  assert.doesNotMatch(report, /\[0\.0%, 0\.0%\]/)
 })
 
 test('reports display truncation against truthful canonical graph totals', () => {

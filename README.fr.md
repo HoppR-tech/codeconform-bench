@@ -13,7 +13,7 @@ Pour chaque tâche, CCB exécute deux fois le même modèle, dans des conditions
 - **Baseline** — le modèle travaille sans Grace.
 - **Grace** — le même modèle travaille avec Grace.
 
-Le benchmark applique d’abord une gate fonctionnelle immuable, extérieure au checkout candidat. Les échecs fonctionnels ou de l’agent reçoivent un score de qualité nul. Les candidats fonctionnels sont ensuite évalués par des règles déterministes isolées couvrant architecture, maintenabilité, clarté, tests et robustesse.
+Le benchmark applique d’abord une gate fonctionnelle immuable, extérieure au checkout candidat. Dès qu’une condition possède au moins une tentative réellement scorée, les échecs fonctionnels ou de l’agent contribuent zéro à sa moyenne end-to-end. Si aucune tentative n’a été scorée, la qualité et les intervalles restent indisponibles au lieu d’afficher un faux zéro. Les candidats fonctionnels sont ensuite évalués par des règles déterministes isolées couvrant architecture, maintenabilité, clarté, tests et robustesse.
 
 CCB rend la qualité du code de chaque modèle et l’effet de Grace mesurables, reproductibles et réfutables.
 
@@ -23,11 +23,11 @@ CCB publie :
 
 - **Functional pass@1** — la proportion de premières tentatives valides qui préservent le comportement épinglé.
 - **Quality-qualified pass@1** — la proportion qui franchit aussi les seuils globaux et par dimension du rule pack versionné.
-- **Code Quality Score** — la moyenne end-to-end de l’architecture, la maintenabilité, la clarté, les tests et la robustesse ; les échecs fonctionnels ou de l’agent valent zéro.
+- **Code Quality Score** — la moyenne end-to-end de l’architecture, la maintenabilité, la clarté, les tests et la robustesse ; les échecs candidats ne valent zéro que si la condition possède une tentative réellement scorée.
 - **Delta Grace** — l’écart apparié entre Grace et baseline pour le même modèle, la même tâche et la même tentative.
 - **Efficience** — tokens, coût, latence et gain de qualité pour 1 000 tokens supplémentaires, publiés séparément de la capacité.
-- **Fiabilité** — les échecs candidats restent des résultats scorés ; les erreurs d’infrastructure fournisseur, harness ou évaluateur sont exclues et publiées explicitement.
-- **Preuves de score brutes** — points et seuils par contrôle versionné, extraits `fichier:ligne` relatifs au candidat, métriques des fichiers évalués, chemins de dépendances et structure qui justifient chaque score.
+- **Fiabilité** — les erreurs d’infrastructure fournisseur, harness ou évaluateur sont exclues et publiées avec des codes stables de phase et de raison.
+- **Preuves de score brutes** — points et seuils par contrôle versionné, extraits `fichier:ligne` relatifs au candidat, métriques, chemins et structure ; un échec évaluateur conserve aussi une sortie expurgée bornée et un patch candidat de récupération pour le rescoring hors ligne.
 
 La tranche OhMyForm actuelle reste une étude de cas sur une seule tâche. Généraliser entre modèles demande une suite versionnée plus large avec un poids égal par tâche.
 
@@ -54,7 +54,7 @@ Le protocole est figé et publié avant les runs :
 3. Le modèle reçoit l’intention fonctionnelle et de qualité du code, jamais les assertions exécutables.
 4. Chaque condition est répétée trois fois et agrégée comme tentatives pass@1.
 5. L’évaluateur s’exécute hors du workspace de l’agent ; ses règles ne sont pas accessibles au modèle.
-6. Les résultats publient moyennes, intervalles appariés, scores par dimension, preuves brutes versionnées par contrôle, citations source, structure de dépendances, données brutes et versions exactes des modèles.
+6. Les résultats publient moyennes, intervalles appariés seulement en présence de vrais scores, scores par dimension, nombre de tentatives scorées, preuves brutes versionnées, citations source, structure de dépendances, données brutes et versions exactes des modèles.
 
 ## Architecture implémentée du benchmark
 
@@ -79,7 +79,7 @@ flowchart LR
     E --> R[Agrégat, preuves et provenance]
 ```
 
-L’ordre baseline/Grace alterne entre les paires. Les échecs fonctionnels ou de l’agent valent zéro ; les erreurs d’infrastructure fournisseur, harness ou évaluateur sont exclues des dénominateurs concernés et publiées explicitement. Les deltas Grace utilisent toutes les paires valides des deux côtés.
+L’ordre baseline/Grace alterne entre les paires. Les échecs candidats contribuent zéro seulement après l’obtention d’un vrai score dans la même condition ; sinon qualité et intervalles restent indisponibles. Les erreurs d’infrastructure fournisseur, harness ou évaluateur sont exclues des dénominateurs concernés et publiées explicitement.
 
 ## Matrice initiale des modèles
 
@@ -109,7 +109,7 @@ Un candidat n’est qualifié que si son score pondéré atteint 70 % et si chaq
 
 Chaque tentative scorée porte le schéma de preuve v1. Une personne peut recalculer chaque contrôle, dimension, score global pondéré, décision de qualification et compteur de violations à partir d’identifiants stables et des points obtenus/maximaux. Les diagnostics inline sont relatifs au candidat, numérotés par ligne, expurgés et bornés pour l’affichage. Le JSON canonique de chaque run conserve tous les fichiers source/test évalués sous forme de contenu scoré complet et expurgé avec leur SHA-256 d’origine, chaque chemin de dépendance déterminant pour le score sans troncature de nœuds, et le graphe normalisé complet. Le rapport complet affiche une vue Mermaid bornée et renvoie vers cet artifact canonique.
 
-Le schéma de preuve v1 accepte cinq dimensions non vides et au plus 35 contrôles uniques par run. Ce budget correspond à l’évaluateur TypeScript officiel et garantit que les six tentatives acceptées peuvent afficher chaque ligne de contrôle dans le Job Summary borné ; une sortie évaluateur hors budget est rejetée avant la persistance de la campagne.
+Les échecs évaluateur suivent le schéma de diagnostic v1 : phase/code stable, raison expurgée et bornée, exit/signal/timeout/stderr du processus si applicable et chemin de validation du schéma rejeté. Dès la fin de l’agent, avant toute gate ou évaluation, le harness prépare un patch de récupération candidat borné contre le commit/tree cible. En cas d’échec évaluateur ou de mutation par un consommateur, ce patch immuable est publié : son contenu et son `candidateDigest` décrivent toujours le candidat de l’agent. Chemins hôte, credentials, environnement, fichiers sensibles et traces du modèle en sont exclus.
 
 La matrice prévue couvre Java/Kotlin, C#/.NET, TypeScript, Python et Go.
 
@@ -121,7 +121,7 @@ CCB traite l’isolation de l’évaluation comme une propriété fondamentale :
 - le modèle ne reçoit ni shell, ni outil web/search/fetch, ni chemin d’évaluateur, ni credential ;
 - les commandes candidat s’exécutent dans Docker avec `--network none`, un workspace et des dépendances vérifiées par digest en lecture seule, des ressources bornées, un seul appel de validation et aucun socket Docker ;
 - le commit/tree cible et le digest de l’export matérialisé, l’endpoint MCP Grace, les digests des montages de dépendances/probe, l’image du conteneur, le runner d’évaluation, le rule pack, la politique fournisseur, les prompts, les artefacts candidats et les traces sont épinglés ou hashés ;
-- l’évaluateur émet les scores agrégés et une preuve canonique complète seulement après la fin de l’agent ; ni les règles ni les preuves ne sont renvoyées au modèle, la sortie brute de l’analyseur contenant des détails d’hôte ou d’environnement est éliminée, les credentials réalistes sont expurgés et un dépassement de taille des preuves produit `evaluator_error` plutôt qu’un score non justifié.
+- l’évaluateur émet les scores et leur preuve seulement après la fin de l’agent ; une erreur produit les diagnostics et données de récupération bornés ci-dessus, jamais un score non justifié.
 
 Le benchmark vérifie un comportement observable, pas la résistance à un programme volontairement conscient du test. L’agent ne reçoit jamais le probe final ni ses assertions ; un code qui détecte intentionnellement l’environnement de validation pour le traiter à part sort du modèle de menace expérimental.
 
@@ -132,9 +132,12 @@ La première tranche v2 est `campaigns/ohmyform-v2.json` : trois tentatives pass
 ```sh
 npm ci --ignore-scripts
 npm test
+npm run preflight:evaluator -- /chemin/absolu/campaign.json /chemin/absolu/ccb-evaluator/test/fixtures
 ```
 
-Les agents de code locaux lisent `.mcp.json` et effectuent l’OAuth Grace lors de leur première connexion. Les campagnes payantes s’exécutent via `.github/workflows/benchmarks.yml` ; GitHub Actions étant non interactif, elles utilisent à la place les secrets de repository `OPENROUTER_API_KEY` et `GRACE_MCP_TOKEN`. Seuls les runs Grace se connectent au MCP du SaaS Grace configuré ; les runs baseline ne reçoivent ni ses instructions ni ses outils. Les contrôles du harness et chaque benchmark apparaissent comme des jobs séparés dans le graphe GitHub Actions. Les campagnes sont fixées à trois répétitions appariées. Chaque benchmark publie un Job Summary déterministe inférieur à 128 Kio, avec réconciliation globale et par dimension, chaque ligne de contrôle brute, la première preuve source/chemin, des projections Mermaid aux totaux véridiques et les pointeurs d’artifact canoniques. L’artifact conservé 30 jours attache `summary.md`, le `report.md` complet, `aggregate.json`, `campaign-manifest.json` et les preuves canoniques source/graphe de chaque run. Les workspaces candidats et les traces modèle brutes ne sont jamais publiés. Le guide `docs/ia/benchmark-bootstrap/user-guide.md` donne la procédure exacte.
+Ce preflight évaluateur est gratuit : la CI checkout le commit évaluateur exact, vérifie les digests du manifest puis envoie les fixtures passante et échouante dans le `ProcessEvaluator` de production avant tout accès aux credentials ou appel fournisseur.
+
+Les agents de code locaux lisent `.mcp.json` et effectuent l’OAuth Grace lors de leur première connexion. Les campagnes payantes s’exécutent via `.github/workflows/benchmarks.yml` avec les secrets de repository. Les contrôles du harness, le preflight gratuit et chaque benchmark apparaissent comme des jobs séparés. Les artifacts publiés contiennent les runs canoniques, les diagnostics d’échec bornés et les patchs de récupération, jamais les traces complètes du modèle.
 
 ### Première cible de benchmark
 

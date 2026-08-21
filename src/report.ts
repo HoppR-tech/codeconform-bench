@@ -122,12 +122,16 @@ function renderRunEvidence(record: RunRecord): string[] {
   const heading = `### ${cell(record.pairId)} · ${record.condition}`
   const evidence = record.qualityEvidence
   if (evidence === null) {
+    const diagnostic = record.evaluatorFailure
     return [
       heading,
       '',
-      record.status === 'evaluator_error'
-        ? 'Evaluation was attempted, but scoring evidence is unavailable or invalid.'
+      diagnostic
+        ? `Evaluation failed at \`${diagnostic.phase}\` with \`${diagnostic.code}\`: ${cell(diagnostic.reason)}${diagnostic.schemaPath ? ` (schema path \`${cell(diagnostic.schemaPath)}\`)` : ''}.`
         : `Scoring evidence: **not evaluated** (run status: \`${record.status}\`).`,
+      ...(record.status === 'evaluator_error' || record.functionalGate?.code === 'candidate_mutated'
+        ? ['', `Offline recovery input: \`failures/${cell(record.pairId)}-${record.condition}-candidate-recovery.json\`.`]
+        : []),
       '',
     ]
   }
@@ -153,8 +157,10 @@ function renderRunEvidence(record: RunRecord): string[] {
 }
 
 function aggregateAttemptScores(records: readonly RunRecord[], condition: Condition): number[] {
-  return records
-    .filter((record) => record.condition === condition && record.status !== 'evaluator_error' && record.status !== 'infrastructure_error')
+  const selected = records.filter((record) => record.condition === condition)
+  if (!selected.some((record) => record.status === 'scored')) return []
+  return selected
+    .filter((record) => record.status !== 'evaluator_error' && record.status !== 'infrastructure_error')
     .map((record) => record.status === 'scored' ? (record.codeQualityScore ?? 0) : 0)
 }
 
@@ -179,26 +185,26 @@ export function renderCampaignReport(
     '',
     '## Code quality results',
     '',
-    'Functional or agent failures score zero. Provider, harness, and evaluator infrastructure errors are excluded from applicable denominators and reported explicitly.',
+    'Functional or agent failures contribute zero only when the condition has at least one genuinely scored attempt. Provider, harness, and evaluator infrastructure errors are excluded. A condition with zero scored attempts reports quality as unavailable, never as zero.',
     '',
-    '| Condition | Attempts | Valid quality attempts | Functional pass@1 | Quality-qualified pass@1 | Code quality | Architecture | Maintainability | Clarity | Tests | Robustness |',
-    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+    '| Condition | Attempts | Scored attempts | Valid quality attempts | Functional pass@1 | Quality-qualified pass@1 | Code quality | Architecture | Maintainability | Clarity | Tests | Robustness |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
     ...(['baseline', 'grace'] as const).map((condition) => {
       const summary = aggregate[condition]
       const dimensions = summary.dimensionMeans
-      return `| ${condition} | ${summary.total} | ${summary.validQualityAttempts} | ${percentage(summary.functionalPassAt1)} | ${percentage(summary.qualityPassAt1)} | ${percentage(summary.codeQualityMean)} | ${percentage(dimensions?.architecture ?? null)} | ${percentage(dimensions?.maintainability ?? null)} | ${percentage(dimensions?.clarity ?? null)} | ${percentage(dimensions?.tests ?? null)} | ${percentage(dimensions?.robustness ?? null)} |`
+      return `| ${condition} | ${summary.total} | ${summary.scoredAttempts} | ${summary.validQualityAttempts} | ${percentage(summary.functionalPassAt1)} | ${percentage(summary.qualityPassAt1)} | ${percentage(summary.codeQualityMean)} | ${percentage(dimensions?.architecture ?? null)} | ${percentage(dimensions?.maintainability ?? null)} | ${percentage(dimensions?.clarity ?? null)} | ${percentage(dimensions?.tests ?? null)} | ${percentage(dimensions?.robustness ?? null)} |`
     }),
     '',
     '### Aggregate score reconciliation',
     '',
-    'Condition means are arithmetic means of applicable per-attempt scores; candidate failures contribute zero and infrastructure/evaluator errors are excluded.',
+    'Condition means are arithmetic means of applicable per-attempt scores. Candidate failures contribute zero only after at least one attempt in that condition is genuinely scored; otherwise quality is unavailable.',
     '',
     '| Condition | Applicable attempt scores | Sum | Mean |',
     '| --- | --- | ---: | ---: |',
     ...(['baseline', 'grace'] as const).map((condition) => {
       const scores = aggregateAttemptScores(records, condition)
       const sum = scores.reduce((total, score) => total + score, 0)
-      return `| ${condition} | ${scores.length === 0 ? '—' : scores.map((score) => percentage(score)).join(' + ')} | ${percentage(sum)} | ${scores.length === 0 ? '—' : percentage(sum / scores.length)} |`
+      return `| ${condition} | ${scores.length === 0 ? '—' : scores.map((score) => percentage(score)).join(' + ')} | ${scores.length === 0 ? '—' : percentage(sum)} | ${scores.length === 0 ? '—' : percentage(sum / scores.length)} |`
     }),
     '',
     '## Paired Grace comparison',
@@ -229,16 +235,20 @@ export function renderCampaignReport(
     '',
     '## Run details',
     '',
-    '| Pair | Condition | Status | Model | Provider | Tokens | Cost | Functional gate | Quality-qualified | Code quality | Architecture | Maintainability | Clarity | Tests | Robustness | Violations | Duration ms | Error |',
-    '| --- | --- | --- | --- | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |',
+    '| Pair | Condition | Status | Model | Provider | Tokens | Cost | Functional diagnostic | Evaluator diagnostic | Quality-qualified | Code quality | Architecture | Maintainability | Clarity | Tests | Robustness | Violations | Duration ms | Error |',
+    '| --- | --- | --- | --- | --- | ---: | ---: | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |',
     ...records.map((record) => {
       const dimensions = record.qualityDimensions
-      return `| ${cell(record.pairId)} | ${record.condition} | ${record.status} | ${cell(record.model)} | ${cell(record.provider)} | ${record.promptTokens + record.completionTokens} | ${cost(record.cost)} | ${record.functionalGatePassed === null ? '—' : record.functionalGatePassed ? 'pass' : 'fail'} | ${record.qualityQualified === null ? '—' : record.qualityQualified ? 'yes' : 'no'} | ${percentage(record.codeQualityScore)} | ${percentage(dimensions?.architecture ?? null)} | ${percentage(dimensions?.maintainability ?? null)} | ${percentage(dimensions?.clarity ?? null)} | ${percentage(dimensions?.tests ?? null)} | ${percentage(dimensions?.robustness ?? null)} | ${value(record.violations)} | ${record.durationMs} | ${cell(record.agentError)} |`
+      const gate = record.functionalGate
+      const gateText = gate === null ? '—' : `${gate.passed ? 'pass' : 'fail'} · ${gate.phase}/${gate.code}${gate.detail ? ` · ${boundedSummaryText(gate.detail, 120)}` : ''}`
+      const diagnostic = record.evaluatorFailure
+      const evaluatorText = diagnostic === null ? '—' : `${diagnostic.phase}/${diagnostic.code}${diagnostic.schemaPath ? ` · ${diagnostic.schemaPath}` : ''} · ${boundedSummaryText(diagnostic.reason, 120)}`
+      return `| ${cell(record.pairId)} | ${record.condition} | ${record.status} | ${cell(record.model)} | ${cell(record.provider)} | ${record.promptTokens + record.completionTokens} | ${cost(record.cost)} | ${cell(gateText)} | ${cell(evaluatorText)} | ${record.qualityQualified === null ? '—' : record.qualityQualified ? 'yes' : 'no'} | ${percentage(record.codeQualityScore)} | ${percentage(dimensions?.architecture ?? null)} | ${percentage(dimensions?.maintainability ?? null)} | ${percentage(dimensions?.clarity ?? null)} | ${percentage(dimensions?.tests ?? null)} | ${percentage(dimensions?.robustness ?? null)} | ${value(record.violations)} | ${record.durationMs} | ${cell(record.agentError)} |`
     }),
     '',
     '## Raw scoring evidence',
     '',
-    'Evidence is generated only after the agent finishes. Each canonical per-run JSON artifact contains complete redacted scored-source content, original source digests, full score-determining paths, and the full normalized dependency graph; this Markdown is a bounded display.',
+    'Evidence is generated only after the agent finishes. Each scored per-run JSON contains complete redacted scored-source content, original source digests, full score-determining paths, and the normalized dependency graph. Evaluator failures retain bounded sanitized process/result diagnostics plus a redacted candidate recovery patch under `evaluator/` and `failures/`; model traces are not part of published evidence.',
     '',
     ...records.flatMap(renderRunEvidence),
   ]
@@ -293,11 +303,12 @@ function renderSummaryEvidence(record: RunRecord): string[] {
   const heading = `### ${cell(record.pairId)} · ${record.condition} · ${record.status}`
   const evidence = record.qualityEvidence
   if (evidence === null) {
+    const diagnostic = record.evaluatorFailure
     return [
       heading,
       '',
-      record.status === 'evaluator_error'
-        ? 'Evaluation was attempted, but scoring evidence is unavailable or invalid.'
+      diagnostic
+        ? `Evaluation failed: \`${diagnostic.phase}/${diagnostic.code}\` — ${cell(diagnostic.reason)}${diagnostic.schemaPath ? ` (schema path \`${cell(diagnostic.schemaPath)}\`)` : ''}.`
         : `Scoring evidence: **not evaluated** (run status: \`${record.status}\`).`,
       '',
     ]
@@ -340,12 +351,13 @@ export function renderCampaignSummary(
     `- Manifest: \`${cell(manifestDigest)}\``,
     '- Full check/source/graph report: `report.md` in the workflow artifact',
     '- Canonical replay evidence: `runs/pair-*.json` in the workflow artifact',
+    '- Evaluator failure diagnostics and offline recovery inputs: `evaluator/` and `failures/`',
     '',
-    '| Condition | Attempts | Valid quality attempts | Functional pass@1 | Quality-qualified pass@1 | Code quality |',
-    '| --- | ---: | ---: | ---: | ---: | ---: |',
+    '| Condition | Attempts | Scored attempts | Valid quality attempts | Functional pass@1 | Quality-qualified pass@1 | Code quality |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
     ...(['baseline', 'grace'] as const).map((condition) => {
       const summary = aggregate[condition]
-      return `| ${condition} | ${summary.total} | ${summary.validQualityAttempts} | ${percentage(summary.functionalPassAt1)} | ${percentage(summary.qualityPassAt1)} | ${percentage(summary.codeQualityMean)} |`
+      return `| ${condition} | ${summary.total} | ${summary.scoredAttempts} | ${summary.validQualityAttempts} | ${percentage(summary.functionalPassAt1)} | ${percentage(summary.qualityPassAt1)} | ${percentage(summary.codeQualityMean)} |`
     }),
     '',
     `- Functional pass@1 delta: ${percentage(aggregate.graceFunctionalPassAt1Delta)}`,

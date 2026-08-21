@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFile } from 'node:child_process'
-import { cp, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { test } from 'node:test'
@@ -27,7 +27,14 @@ function outcomeRecord(pairId: string, condition: 'baseline' | 'grace', status: 
     promptTokens: 100,
     completionTokens: 10,
     cost: 0.01,
-    functionalGatePassed: scored || status === 'evaluator_error' ? true : status === 'functional_failed' ? false : null,
+    functionalGate: scored || status === 'evaluator_error'
+      ? { passed: true, phase: 'assertion', code: 'passed', detail: null }
+      : status === 'functional_failed'
+        ? { passed: false, phase: 'assertion', code: 'assertion_mismatch', detail: 'fixture mismatch' }
+        : null,
+    evaluatorFailure: status === 'evaluator_error'
+      ? { schemaVersion: 1, phase: 'internal', code: 'internal_error', reason: 'fixture evaluator failed' }
+      : null,
     durationMs: 100,
     codeQualityScore: scored ? qualityScore : null,
     qualityQualified: scored ? qualityScore >= 0.7 : null,
@@ -43,7 +50,7 @@ function outcomeRecord(pairId: string, condition: 'baseline' | 'grace', status: 
   }
 }
 
-test('scores candidate failures as zero and excludes infrastructure failures', () => {
+test('does not publish quality zero when a condition has no genuinely scored attempts', () => {
   const aggregate = aggregateRecords([
     outcomeRecord('pair-01', 'baseline', 'functional_failed'),
     outcomeRecord('pair-01', 'grace', 'scored', 0.8),
@@ -51,14 +58,47 @@ test('scores candidate failures as zero and excludes infrastructure failures', (
     outcomeRecord('pair-02', 'grace', 'infrastructure_error'),
   ], 100, 7)
 
-  assert.equal(aggregate.baseline.codeQualityMean, 0)
-  assert.equal(aggregate.baseline.validQualityAttempts, 2)
+  assert.equal(aggregate.baseline.scoredAttempts, 0)
+  assert.equal(aggregate.baseline.codeQualityMean, null)
+  assert.equal(aggregate.baseline.qualityPassAt1, null)
+  assert.equal(aggregate.baseline.validQualityAttempts, 0)
+  assert.equal(aggregate.grace.scoredAttempts, 1)
   assert.equal(aggregate.grace.codeQualityMean, 0.8)
   assert.equal(aggregate.grace.validQualityAttempts, 1)
   assert.equal(aggregate.grace.infrastructureErrors, 1)
   assert.equal(aggregate.functionalPairedAttempts, 1)
-  assert.equal(aggregate.qualityPairedAttempts, 1)
-  assert.equal(aggregate.graceCodeQualityDeltaMean, 0.8)
+  assert.equal(aggregate.qualityPairedAttempts, 0)
+  assert.equal(aggregate.graceQualityPassAt1Delta, null)
+  assert.equal(aggregate.graceCodeQualityDeltaMean, null)
+  assert.equal(aggregate.graceCodeQualityBootstrap95, null)
+  assert.equal(aggregate.qualityGainPerAdditional1000TokensMean, null)
+})
+
+test('suppresses paired quality metrics when Grace has no genuinely scored attempts', () => {
+  const aggregate = aggregateRecords([
+    outcomeRecord('pair-01', 'baseline', 'scored', 0.8),
+    outcomeRecord('pair-01', 'grace', 'functional_failed'),
+    outcomeRecord('pair-02', 'baseline', 'scored', 0.6),
+    outcomeRecord('pair-02', 'grace', 'agent_error'),
+  ], 100, 7)
+
+  assert.equal(aggregate.baseline.scoredAttempts, 2)
+  assert.equal(aggregate.grace.scoredAttempts, 0)
+  assert.equal(aggregate.qualityPairedAttempts, 0)
+  assert.equal(aggregate.graceQualityPassAt1Delta, null)
+  assert.equal(aggregate.graceCodeQualityDeltaMean, null)
+  assert.equal(aggregate.graceCodeQualityBootstrap95, null)
+  assert.equal(aggregate.qualityGainPerAdditional1000TokensMean, null)
+})
+
+test('keeps candidate-failure zeros after a condition has a genuine score', () => {
+  const aggregate = aggregateRecords([
+    outcomeRecord('pair-01', 'baseline', 'functional_failed'),
+    outcomeRecord('pair-02', 'baseline', 'scored', 0.8),
+  ], 100, 7)
+  assert.equal(aggregate.baseline.scoredAttempts, 1)
+  assert.equal(aggregate.baseline.validQualityAttempts, 2)
+  assert.equal(aggregate.baseline.codeQualityMean, 0.4)
 })
 
 test('runs paired conditions, gates before scoring, and preserves provenance', async () => {
@@ -113,7 +153,7 @@ test('runs paired conditions, gates before scoring, and preserves provenance', a
     },
     runFunctionalGate: async (workspace) => {
       if (workspace.endsWith('pair-02-baseline')) await writeFile(resolve(workspace, 'candidate.txt'), 'gate mutation\n')
-      return { passed: true }
+      return { passed: true, phase: 'assertion', code: 'passed', detail: null }
     },
     evaluate: async (workspace, pairId, condition) => {
       evaluated.push(`${pairId}-${condition}`)
@@ -149,6 +189,14 @@ test('runs paired conditions, gates before scoring, and preserves provenance', a
   assert.equal(result.records.find((record) => record.pairId === 'pair-02' && record.condition === 'baseline')?.codeQualityScore, null)
   assert.equal(result.records.find((record) => record.pairId === 'pair-02' && record.condition === 'baseline')?.status, 'functional_failed')
   assert.equal(result.records.find((record) => record.pairId === 'pair-02' && record.condition === 'grace')?.status, 'evaluator_error')
+  assert.equal(
+    result.records.find((record) => record.pairId === 'pair-02' && record.condition === 'baseline')?.functionalGate?.code,
+    'candidate_mutated',
+  )
+  assert.equal(
+    result.records.find((record) => record.pairId === 'pair-02' && record.condition === 'grace')?.evaluatorFailure?.reason,
+    'evaluator mutated the candidate workspace',
+  )
   assert.deepEqual(evaluated, ['pair-01-baseline', 'pair-01-grace', 'pair-02-grace'])
   assert.match(result.records[0]?.candidateDigest ?? '', /^sha256:[0-9a-f]{64}$/)
   const persistedRun = JSON.parse(await readFile(resolve(output, 'runs/pair-01-baseline.json'), 'utf8')) as RunRecord
@@ -158,6 +206,39 @@ test('runs paired conditions, gates before scoring, and preserves provenance', a
   assert.match(persistedRun.qualityEvidence?.sources[0]?.digest ?? '', /^sha256:[0-9a-f]{64}$/)
   const failedRun = JSON.parse(await readFile(resolve(output, 'runs/pair-02-baseline.json'), 'utf8')) as RunRecord
   assert.equal(failedRun.qualityEvidence, null)
+  type Recovery = {
+    candidateDigest: string
+    complete: boolean
+    operations: Array<{ operation: string; path: string; content?: string }>
+  }
+  const graceRecord = result.records.find((record) => record.pairId === 'pair-02' && record.condition === 'grace')
+  const graceRecovery = JSON.parse(await readFile(
+    resolve(output, 'failures/pair-02-grace-candidate-recovery.json'),
+    'utf8',
+  )) as Recovery
+  assert.equal(graceRecovery.complete, true)
+  assert.equal(graceRecovery.candidateDigest, graceRecord?.candidateDigest)
+  assert.deepEqual(
+    graceRecovery.operations.map(({ operation, path }) => [operation, path]),
+    [['write', 'candidate.txt']],
+  )
+  assert.equal(graceRecovery.operations[0]?.content, 'grace\n')
+  assert.equal(await readFile(resolve(output, 'workspaces/pair-02-grace/candidate.txt'), 'utf8'), 'evaluator mutation\n')
+
+  const baselineRecord = result.records.find((record) => record.pairId === 'pair-02' && record.condition === 'baseline')
+  const baselineRecovery = JSON.parse(await readFile(
+    resolve(output, 'failures/pair-02-baseline-candidate-recovery.json'),
+    'utf8',
+  )) as Recovery
+  assert.equal(baselineRecovery.complete, true)
+  assert.equal(baselineRecovery.candidateDigest, baselineRecord?.candidateDigest)
+  assert.deepEqual(
+    baselineRecovery.operations.map(({ operation, path }) => [operation, path]),
+    [['write', 'candidate.txt']],
+  )
+  assert.equal(baselineRecovery.operations[0]?.content, 'baseline\n')
+  assert.equal(await readFile(resolve(output, 'workspaces/pair-02-baseline/candidate.txt'), 'utf8'), 'gate mutation\n')
+  assert.ok((await readdir(resolve(output, 'failures'))).every((name) => !name.startsWith('.')))
   const summary = await readFile(resolve(output, 'summary.md'), 'utf8')
   assert.match(summary, /Full check\/source\/graph report: `report\.md`/)
   assert.match(summary, /runs\/pair-01-baseline\.json/)

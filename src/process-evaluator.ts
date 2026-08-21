@@ -1,9 +1,13 @@
-import { mkdir, readFile, rm, stat } from 'node:fs/promises'
+import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import {
+  EVALUATOR_FAILURE_SCHEMA_VERSION,
   QUALITY_DIMENSIONS,
   type CampaignManifest,
   type Condition,
+  type EvaluatorFailureCode,
+  type EvaluatorFailureDiagnostic,
+  type EvaluatorFailurePhase,
   type EvaluatorResult,
   type EvidenceLocation,
   type EvidenceOperator,
@@ -19,6 +23,7 @@ import {
 } from './contracts.js'
 import { sha256 } from './digest.js'
 import { runProcess } from './process.js'
+import { MAX_SAFE_STDERR_CHARACTERS, safeReason, sanitizeText } from './safe-diagnostics.js'
 
 const EVALUATOR_TIMEOUT_MS = 2 * 60 * 1000
 const MAX_RESULT_BYTES = 16 * 1024 * 1024
@@ -37,7 +42,41 @@ const MAX_CANDIDATE_ENTRIES = 10_000
 const MAX_GRAPH_ENTRIES = 200_000
 const CHECK_ID = /^[a-z][a-z0-9.-]+$/
 const OPERATORS: Record<EvidenceOperator, true> = { eq: true, gte: true, lte: true, exists: true, not_exists: true }
-const URL_CREDENTIAL = /[a-z][a-z0-9+.-]*:\/\/[^/\s:@]+:[^@\s/]+@/i
+const EVALUATOR_PHASES: Record<EvaluatorFailurePhase, true> = {
+  integrity: true,
+  command: true,
+  process: true,
+  result_read: true,
+  result_parse: true,
+  result_schema: true,
+  candidate_inspection: true,
+  rule_pack: true,
+  dependency_analysis: true,
+  source_analysis: true,
+  serialization: true,
+  internal: true,
+}
+const EVALUATOR_CODES: Record<EvaluatorFailureCode, true> = {
+  runner_digest_mismatch: true,
+  rule_pack_digest_mismatch: true,
+  command_missing: true,
+  process_timeout: true,
+  process_signal: true,
+  process_exit: true,
+  result_missing: true,
+  result_too_large: true,
+  result_invalid_json: true,
+  result_schema_invalid: true,
+  candidate_access_failed: true,
+  candidate_tree_invalid: true,
+  candidate_path_invalid: true,
+  candidate_limits_exceeded: true,
+  rule_pack_invalid: true,
+  dependency_analysis_failed: true,
+  source_analysis_failed: true,
+  serialization_failed: true,
+  internal_error: true,
+}
 
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('expected object')
@@ -103,15 +142,14 @@ function location(value: unknown): EvidenceLocation {
   const line = integer(raw.line, Number.MAX_SAFE_INTEGER)
   const endLine = integer(raw.endLine, Number.MAX_SAFE_INTEGER)
   if (line < 1 || endLine < line) throw new Error('invalid source range')
-  const message = raw.message === undefined ? undefined : text(raw.message)
-  const snippet = text(raw.snippet, MAX_SNIPPET_CHARACTERS)
-  if (URL_CREDENTIAL.test(snippet)) throw new Error('source snippet contains unredacted URL credentials')
+  const messageValue = raw.message === undefined ? undefined : sanitizeText(text(raw.message), MAX_TEXT_CHARACTERS).text
+  const snippet = sanitizeText(text(raw.snippet, MAX_SNIPPET_CHARACTERS), MAX_SNIPPET_CHARACTERS).text
   return {
     path: candidatePath(raw.path),
     line,
     endLine,
     snippet,
-    ...(message === undefined ? {} : { message }),
+    ...(messageValue === undefined ? {} : { message: messageValue }),
   }
 }
 
@@ -245,19 +283,19 @@ function inventoryFile(value: unknown): QualityInventoryFile {
 
 function sourceEvidence(value: unknown): QualityEvidenceSource {
   const raw = object(value)
-  const content = text(raw.content, MAX_CANONICAL_SOURCE_BYTES)
+  const originalContent = text(raw.content, MAX_CANONICAL_SOURCE_BYTES)
+  const safeContent = sanitizeText(originalContent, MAX_CANONICAL_SOURCE_BYTES)
   const digest = text(raw.digest)
-  if (URL_CREDENTIAL.test(content)) throw new Error('canonical source contains unredacted URL credentials')
   const lineCount = integer(raw.lineCount, MAX_CANDIDATE_ENTRIES)
-  if (!/^sha256:[0-9a-f]{64}$/.test(digest) || lineCount !== content.split('\n').length) {
+  if (!/^sha256:[0-9a-f]{64}$/.test(digest) || lineCount !== originalContent.split('\n').length) {
     throw new Error('invalid canonical source evidence')
   }
   return {
     path: candidatePath(raw.path),
     digest,
     lineCount,
-    redactionCount: integer(raw.redactionCount, MAX_CANDIDATE_ENTRIES),
-    content,
+    redactionCount: integer(raw.redactionCount, MAX_CANDIDATE_ENTRIES) + safeContent.redactions,
+    content: safeContent.text,
   }
 }
 
@@ -380,56 +418,277 @@ function qualityDimensions(value: unknown): QualityDimensions {
   ])) as QualityDimensions
 }
 
+class ResultSchemaError extends Error {
+  constructor(readonly path: string, reason: string) {
+    super(reason)
+  }
+}
+
+function validateAt<T>(path: string, validation: () => T): T {
+  try {
+    return validation()
+  } catch (error) {
+    if (error instanceof ResultSchemaError) throw error
+    throw new ResultSchemaError(path, safeReason(error, 'invalid evaluator result'))
+  }
+}
+
+function parseProducerDiagnostic(value: unknown): EvaluatorFailureDiagnostic {
+  const raw = validateAt('$.diagnostic', () => object(value))
+  if (raw.schemaVersion !== EVALUATOR_FAILURE_SCHEMA_VERSION) {
+    throw new ResultSchemaError('$.diagnostic.schemaVersion', 'unsupported evaluator failure schema')
+  }
+  const phase = validateAt('$.diagnostic.phase', () => text(raw.phase)) as EvaluatorFailurePhase
+  const code = validateAt('$.diagnostic.code', () => text(raw.code)) as EvaluatorFailureCode
+  if (!Object.hasOwn(EVALUATOR_PHASES, phase)) throw new ResultSchemaError('$.diagnostic.phase', 'unknown evaluator failure phase')
+  if (!Object.hasOwn(EVALUATOR_CODES, code)) throw new ResultSchemaError('$.diagnostic.code', 'unknown evaluator failure code')
+  return {
+    schemaVersion: EVALUATOR_FAILURE_SCHEMA_VERSION,
+    phase,
+    code,
+    reason: sanitizeText(validateAt('$.diagnostic.reason', () => text(raw.reason)), MAX_TEXT_CHARACTERS).text,
+  }
+}
+
+function failureDiagnostic(
+  phase: EvaluatorFailurePhase,
+  code: EvaluatorFailureCode,
+  reason: string,
+  detail: Partial<EvaluatorFailureDiagnostic> = {},
+): EvaluatorFailureDiagnostic {
+  return {
+    schemaVersion: EVALUATOR_FAILURE_SCHEMA_VERSION,
+    phase,
+    code,
+    reason: sanitizeText(reason, MAX_TEXT_CHARACTERS).text,
+    ...detail,
+  }
+}
+
+const MAX_FAILURE_RESULT_CHARACTERS = 64 * 1024
+
+async function readPartialResult(path: string): Promise<string | null> {
+  try {
+    if ((await stat(path)).size > MAX_FAILURE_RESULT_CHARACTERS) return null
+    return await readFile(path, 'utf8')
+  } catch {
+    return null
+  }
+}
+
+function resultIdentifier(pairId: string, condition: Condition): string {
+  if (!/^pair-[0-9]{2}$/.test(pairId)) throw new Error('pairId must use the canonical pair-NN format')
+  return `${pairId}-${condition}`
+}
+
+function normalizedSuccessResult(
+  result: Record<string, unknown>,
+  dimensions: QualityDimensions,
+  violations: number,
+  qualityScore: number,
+  qualityQualified: boolean,
+): Exclude<EvaluatorResult, { status: 'evaluator_error' }> {
+  return {
+    status: result.status as 'passing' | 'failing',
+    violations,
+    qualityScore,
+    qualityQualified,
+    dimensions,
+    evidence: validateAt('$.evidence', () => evidence(result.evidence, dimensions, qualityScore, qualityQualified, violations)),
+  }
+}
+
+function validateEvaluatorResult(raw: unknown): EvaluatorResult {
+  const result = validateAt('$', () => object(raw))
+  if (result.status === 'evaluator_error') {
+    return { status: 'evaluator_error', diagnostic: parseProducerDiagnostic(result.diagnostic) }
+  }
+  if (result.status !== 'passing' && result.status !== 'failing') {
+    throw new ResultSchemaError('$.status', 'expected passing, failing, or evaluator_error status')
+  }
+  const violations = validateAt('$.violations', () => integer(result.violations, MAX_CANDIDATE_ENTRIES))
+  const qualityScore = validateAt('$.qualityScore', () => finite(result.qualityScore, 0, 1))
+  const qualityQualified = validateAt('$.qualityQualified', () => bool(result.qualityQualified))
+  if ((result.status === 'passing') !== qualityQualified) {
+    throw new ResultSchemaError('$.qualityQualified', 'status and quality qualification disagree')
+  }
+  const dimensions = validateAt('$.dimensions', () => qualityDimensions(result.dimensions))
+  return normalizedSuccessResult(result, dimensions, violations, qualityScore, qualityQualified)
+}
+
+
 export class ProcessEvaluator {
   constructor(
     private readonly config: CampaignManifest['evaluator'],
     private readonly outputDirectory: string,
+    private readonly timeoutMs = EVALUATOR_TIMEOUT_MS,
   ) {}
 
-  async evaluate(workspace: string, pairId: string, condition: Condition): Promise<EvaluatorResult> {
-    if (
-      sha256(await readFile(this.config.rulePack.path)) !== this.config.rulePack.digest
-      || sha256(await readFile(this.config.runner.path)) !== this.config.runner.digest
-    ) {
-      return { status: 'evaluator_error' }
-    }
+  private async persistFailure(
+    directory: string,
+    identifier: string,
+    diagnostic: EvaluatorFailureDiagnostic,
+    rawText: string | null,
+  ): Promise<EvaluatorResult> {
+    const safeRaw = rawText === null ? null : sanitizeText(rawText, MAX_FAILURE_RESULT_CHARACTERS)
+    await writeFile(
+      resolve(directory, `${identifier}.result-sanitized.json`),
+      `${JSON.stringify({
+        schemaVersion: 1,
+        kind: 'evaluator_failure_result',
+        content: safeRaw?.text ?? null,
+        redactions: safeRaw?.redactions ?? 0,
+        truncated: safeRaw?.truncated ?? false,
+      }, null, 2)}\n`,
+    )
+    await writeFile(resolve(directory, `${identifier}.failure.json`), `${JSON.stringify(diagnostic, null, 2)}\n`)
+    return { status: 'evaluator_error', diagnostic }
+  }
 
+  async evaluate(workspace: string, pairId: string, condition: Condition): Promise<EvaluatorResult> {
+    const identifier = resultIdentifier(pairId, condition)
     const directory = resolve(this.outputDirectory, 'evaluator')
     await mkdir(directory, { recursive: true })
-    const resultPath = resolve(directory, `${pairId}-${condition}.json`)
+    const resultPath = resolve(directory, `${identifier}.untrusted.json`)
     await rm(resultPath, { force: true })
+
+    let runner: Buffer
+    try {
+      runner = await readFile(this.config.runner.path)
+    } catch {
+      return this.persistFailure(directory, identifier, failureDiagnostic(
+        'integrity',
+        'runner_digest_mismatch',
+        'evaluator runner digest could not be verified',
+      ), null)
+    }
+    if (sha256(runner) !== this.config.runner.digest) {
+      return this.persistFailure(directory, identifier, failureDiagnostic(
+        'integrity',
+        'runner_digest_mismatch',
+        'evaluator runner digest did not match the manifest pin',
+      ), null)
+    }
+    let rulePack: Buffer
+    try {
+      rulePack = await readFile(this.config.rulePack.path)
+    } catch {
+      return this.persistFailure(directory, identifier, failureDiagnostic(
+        'integrity',
+        'rule_pack_digest_mismatch',
+        'evaluator rule-pack digest could not be verified',
+      ), null)
+    }
+    if (sha256(rulePack) !== this.config.rulePack.digest) {
+      return this.persistFailure(directory, identifier, failureDiagnostic(
+        'integrity',
+        'rule_pack_digest_mismatch',
+        'evaluator rule-pack digest did not match the manifest pin',
+      ), null)
+    }
+
     const command = this.config.command.map((part) => part
       .replaceAll('{candidate}', workspace)
       .replaceAll('{result}', resultPath)
       .replaceAll('{rulePack}', this.config.rulePack.path)
       .replaceAll('{runner}', this.config.runner.path))
     const executable = command[0]
-    if (!executable) return { status: 'evaluator_error' }
-
-    const processResult = await runProcess(executable, command.slice(1), { timeoutMs: EVALUATOR_TIMEOUT_MS })
-    if (processResult.exitCode !== 0 || processResult.signal || processResult.timedOut) return { status: 'evaluator_error' }
-
-    try {
-      if ((await stat(resultPath)).size > MAX_RESULT_BYTES) return { status: 'evaluator_error' }
-      const raw: unknown = JSON.parse(await readFile(resultPath, 'utf8'))
-      const result = object(raw)
-      if (result.status === 'evaluator_error') return { status: 'evaluator_error' }
-      if (result.status !== 'passing' && result.status !== 'failing') return { status: 'evaluator_error' }
-      const violations = integer(result.violations, MAX_CANDIDATE_ENTRIES)
-      const qualityScore = finite(result.qualityScore, 0, 1)
-      const qualityQualified = bool(result.qualityQualified)
-      if ((result.status === 'passing') !== qualityQualified) return { status: 'evaluator_error' }
-      const dimensions = qualityDimensions(result.dimensions)
-      return {
-        status: result.status,
-        violations,
-        qualityScore,
-        qualityQualified,
-        dimensions,
-        evidence: evidence(result.evidence, dimensions, qualityScore, qualityQualified, violations),
-      }
-    } catch {
-      return { status: 'evaluator_error' }
+    if (!executable) {
+      return this.persistFailure(directory, identifier, failureDiagnostic(
+        'command',
+        'command_missing',
+        'evaluator command did not specify an executable',
+      ), null)
     }
+
+    const processResult = await runProcess(executable, command.slice(1), { timeoutMs: this.timeoutMs })
+    const stderr = sanitizeText(processResult.stderr, MAX_SAFE_STDERR_CHARACTERS).text
+    if (processResult.timedOut) {
+      return this.persistFailure(directory, identifier, failureDiagnostic(
+        'process',
+        'process_timeout',
+        'evaluator process timed out',
+        { exitCode: processResult.exitCode, signal: processResult.signal, timedOut: true, stderr },
+      ), await readPartialResult(resultPath))
+    }
+    if (processResult.signal) {
+      return this.persistFailure(directory, identifier, failureDiagnostic(
+        'process',
+        'process_signal',
+        'evaluator process exited after a signal',
+        { exitCode: processResult.exitCode, signal: processResult.signal, timedOut: false, stderr },
+      ), await readPartialResult(resultPath))
+    }
+    if (processResult.exitCode !== 0) {
+      return this.persistFailure(directory, identifier, failureDiagnostic(
+        'process',
+        'process_exit',
+        'evaluator process exited unsuccessfully',
+        { exitCode: processResult.exitCode, signal: processResult.signal, timedOut: false, stderr },
+      ), await readPartialResult(resultPath))
+    }
+
+    let resultSize: number
+    try {
+      resultSize = (await stat(resultPath)).size
+    } catch {
+      return this.persistFailure(directory, identifier, failureDiagnostic(
+        'result_read',
+        'result_missing',
+        'evaluator process did not produce a result',
+      ), null)
+    }
+    if (resultSize > MAX_RESULT_BYTES) {
+      await rm(resultPath, { force: true })
+      return this.persistFailure(directory, identifier, failureDiagnostic(
+        'result_read',
+        'result_too_large',
+        'evaluator result exceeded the size limit',
+      ), null)
+    }
+
+    let rawText: string
+    try {
+      rawText = await readFile(resultPath, 'utf8')
+    } catch {
+      return this.persistFailure(directory, identifier, failureDiagnostic(
+        'result_read',
+        'result_missing',
+        'evaluator result could not be read',
+      ), null)
+    } finally {
+      await rm(resultPath, { force: true })
+    }
+
+    let raw: unknown
+    try {
+      raw = JSON.parse(rawText)
+    } catch (error) {
+      return this.persistFailure(directory, identifier, failureDiagnostic(
+        'result_parse',
+        'result_invalid_json',
+        safeReason(error, 'evaluator result was not valid JSON'),
+      ), rawText)
+    }
+
+    let validated: EvaluatorResult
+    try {
+      validated = validateEvaluatorResult(raw)
+    } catch (error) {
+      const schemaError = error instanceof ResultSchemaError
+        ? error
+        : new ResultSchemaError('$', safeReason(error, 'invalid evaluator result'))
+      return this.persistFailure(directory, identifier, failureDiagnostic(
+        'result_schema',
+        'result_schema_invalid',
+        schemaError.message,
+        { schemaPath: schemaError.path },
+      ), rawText)
+    }
+    if (validated.status === 'evaluator_error') {
+      return this.persistFailure(directory, identifier, validated.diagnostic, rawText)
+    }
+    await writeFile(resolve(directory, `${identifier}.result-sanitized.json`), `${JSON.stringify(validated, null, 2)}\n`)
+    return validated
   }
 }

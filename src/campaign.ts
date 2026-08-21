@@ -1,7 +1,8 @@
-import { lstat, mkdir, realpath, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, realpath, rename, rm, writeFile } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
-import { QUALITY_DIMENSIONS, type AgentOutput, type CampaignAggregate, type CampaignManifest, type CampaignPorts, type CampaignResult, type Condition, type ConditionSummary, type QualityDimensions, type QualityEvidence, type RunRecord } from './contracts.js'
+import { EVALUATOR_FAILURE_SCHEMA_VERSION, QUALITY_DIMENSIONS, type AgentOutput, type CampaignAggregate, type CampaignManifest, type CampaignPorts, type CampaignResult, type Condition, type ConditionSummary, type EvaluatorFailureDiagnostic, type FunctionalGateResult, type QualityDimensions, type QualityEvidence, type RunRecord } from './contracts.js'
 import { hashTree, sha256 } from './digest.js'
+import { writeCandidateRecoveryArtifact } from './failure-artifacts.js'
 import { renderCampaignReport, renderCampaignSummary } from './report.js'
 
 function mean(values: readonly number[]): number | null {
@@ -49,8 +50,8 @@ function qualityPassOutcome(record: RunRecord): number | null {
 }
 
 function dimensionMeans(records: readonly RunRecord[]): QualityDimensions | null {
+  if (!records.some((record) => record.status === 'scored')) return null
   const valid = records.filter((record) => record.status !== 'evaluator_error' && record.status !== 'infrastructure_error')
-  if (valid.length === 0) return null
   return Object.fromEntries(QUALITY_DIMENSIONS.map((dimension) => [
     dimension,
     mean(valid.map((record) => record.status === 'scored' ? (record.qualityDimensions?.[dimension] ?? 0) : 0)) ?? 0,
@@ -59,21 +60,23 @@ function dimensionMeans(records: readonly RunRecord[]): QualityDimensions | null
 
 function conditionSummary(records: readonly RunRecord[], condition: Condition): ConditionSummary {
   const selected = records.filter((record) => record.condition === condition)
+  const scoredAttempts = selected.filter((record) => record.status === 'scored').length
   const functionalOutcomes = selected.flatMap((record) => {
     const outcome = functionalOutcome(record)
     return outcome === null ? [] : [outcome]
   })
-  const qualityScores = selected.flatMap((record) => {
+  const qualityScores = scoredAttempts === 0 ? [] : selected.flatMap((record) => {
     const score = qualityOutcome(record)
     return score === null ? [] : [score]
   })
-  const qualityPasses = selected.flatMap((record) => {
+  const qualityPasses = scoredAttempts === 0 ? [] : selected.flatMap((record) => {
     const outcome = qualityPassOutcome(record)
     return outcome === null ? [] : [outcome]
   })
   return {
     total: selected.length,
     validFunctionalAttempts: functionalOutcomes.length,
+    scoredAttempts,
     validQualityAttempts: qualityScores.length,
     functionalPasses: functionalOutcomes.reduce((total, outcome) => total + outcome, 0),
     qualityPasses: qualityPasses.reduce((total, outcome) => total + outcome, 0),
@@ -103,6 +106,8 @@ export function aggregateRecords(records: readonly RunRecord[], bootstrapSamples
   const qualityPassDeltas: number[] = []
   const qualityDeltas: number[] = []
   const tokenEfficiency: number[] = []
+  const bothConditionsHaveScores = (['baseline', 'grace'] as const)
+    .every((condition) => records.some((record) => record.condition === condition && record.status === 'scored'))
   for (const pair of pairs.values()) {
     if (!pair.baseline || !pair.grace) continue
     const baselineFunctional = functionalOutcome(pair.baseline)
@@ -112,7 +117,7 @@ export function aggregateRecords(records: readonly RunRecord[], bootstrapSamples
     const graceScore = qualityOutcome(pair.grace)
     const baselinePass = qualityPassOutcome(pair.baseline)
     const gracePass = qualityPassOutcome(pair.grace)
-    if (baselineScore === null || graceScore === null || baselinePass === null || gracePass === null) continue
+    if (!bothConditionsHaveScores || baselineScore === null || graceScore === null || baselinePass === null || gracePass === null) continue
 
     const delta = graceScore - baselineScore
     qualityPassDeltas.push(gracePass - baselinePass)
@@ -153,6 +158,7 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
   }
   await mkdir(resolve(output, 'runs'), { recursive: true })
   await mkdir(resolve(output, 'workspaces'), { recursive: true })
+  await mkdir(resolve(output, 'failures'), { recursive: true })
   const manifestJson = `${JSON.stringify(manifest, null, 2)}\n`
   await writeFile(resolve(output, 'campaign-manifest.json'), manifestJson)
   const manifestDigest = sha256(manifestJson)
@@ -190,9 +196,21 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
       const traceDigest = sha256(traceJson)
       await writeFile(resolve(output, 'runs', `${pairId}-${condition}-trace.json`), traceJson)
       const candidateDigest = await hashTree(workspace)
+      const recoveryStagingPath = resolve(output, 'failures', `.${pairId}-${condition}-candidate-recovery.tmp`)
+      if (agent.status === 'completed') {
+        await writeCandidateRecoveryArtifact({
+          baseRoot: target,
+          candidateRoot: workspace,
+          outputPath: recoveryStagingPath,
+          baseCommit: manifest.target.commit,
+          baseTree: manifest.target.tree,
+          candidateDigest,
+        })
+      }
 
       let status: RunRecord['status'] = agent.status === 'infrastructure_error' ? 'infrastructure_error' : 'agent_error'
-      let functionalGatePassed: boolean | null = null
+      let functionalGate: FunctionalGateResult | null = null
+      let evaluatorFailure: EvaluatorFailureDiagnostic | null = null
       let codeQualityScore: number | null = null
       let qualityQualified: boolean | null = null
       let qualityDimensions: QualityDimensions | null = null
@@ -200,22 +218,47 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
       let qualityEvidence: QualityEvidence | null = null
 
       if (agent.status === 'completed') {
-        const gate = await ports.runFunctionalGate(workspace)
-        functionalGatePassed = gate.passed
-        if (!gate.passed || await hashTree(workspace) !== candidateDigest) {
+        functionalGate = await ports.runFunctionalGate(workspace)
+        if (await hashTree(workspace) !== candidateDigest) {
+          functionalGate = {
+            passed: false,
+            phase: 'candidate_integrity',
+            code: 'candidate_mutated',
+            detail: 'functional gate mutated the candidate workspace',
+          }
+        }
+        if (!functionalGate.passed) {
           status = 'functional_failed'
         } else {
           const evaluation = await ports.evaluate(workspace, pairId, condition)
-          if (evaluation.status === 'evaluator_error' || await hashTree(workspace) !== candidateDigest) {
+          if (await hashTree(workspace) !== candidateDigest) {
+            evaluatorFailure = {
+              schemaVersion: EVALUATOR_FAILURE_SCHEMA_VERSION,
+              phase: 'internal',
+              code: 'internal_error',
+              reason: 'evaluator mutated the candidate workspace',
+            }
+            status = 'evaluator_error'
+          } else if (evaluation.status === 'evaluator_error') {
+            evaluatorFailure = evaluation.diagnostic
             status = 'evaluator_error'
           } else {
             status = 'scored'
-            codeQualityScore = evaluation.qualityScore ?? null
-            qualityQualified = evaluation.qualityQualified ?? null
-            qualityDimensions = evaluation.dimensions ?? null
-            violations = evaluation.violations ?? null
+            codeQualityScore = evaluation.qualityScore
+            qualityQualified = evaluation.qualityQualified
+            qualityDimensions = evaluation.dimensions
+            violations = evaluation.violations
             qualityEvidence = evaluation.evidence
           }
+        }
+      }
+
+      if (agent.status === 'completed') {
+        const recoveryPath = resolve(output, 'failures', `${pairId}-${condition}-candidate-recovery.json`)
+        if (status === 'evaluator_error' || functionalGate?.code === 'candidate_mutated') {
+          await rename(recoveryStagingPath, recoveryPath)
+        } else {
+          await rm(recoveryStagingPath, { force: true })
         }
       }
 
@@ -233,7 +276,8 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
         promptTokens: agent.promptTokens,
         completionTokens: agent.completionTokens,
         cost: agent.cost,
-        functionalGatePassed,
+        functionalGate,
+        evaluatorFailure,
         codeQualityScore,
         qualityQualified,
         qualityDimensions,

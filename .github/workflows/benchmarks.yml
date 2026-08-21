@@ -31,9 +31,55 @@ jobs:
       - name: Install and test harness
         run: npm ci && npm test
 
+      - name: Publish tested harness build
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: harness-dist-${{ github.sha }}
+          path: dist
+          if-no-files-found: error
+          retention-days: 1
+
+  evaluator-preflight:
+    name: Evaluator · exact-pin unpaid preflight
+    needs: quality
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out benchmark harness
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install harness dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Download tested harness build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: harness-dist-${{ github.sha }}
+          path: dist
+
+      - name: Check out exact evaluator pin
+        run: |
+          set -euo pipefail
+          mkdir -p .bench
+          git clone --filter=blob:none --branch benchmark/ohmyform-v2 https://github.com/HoppR-tech/ccb-evaluator.git .bench/evaluator
+          git -C .bench/evaluator checkout --detach 2b0deb6df0e2b3e2fe9627ce361e92cd6d1e2a45
+          test "$(git -C .bench/evaluator rev-parse HEAD)" = "2b0deb6df0e2b3e2fe9627ce361e92cd6d1e2a45"
+          npm ci --ignore-scripts --prefix .bench/evaluator
+
+      - name: Exercise passing and failing fixtures through ProcessEvaluator
+        run: npm run preflight:evaluator -- "${{ github.workspace }}/campaigns/ohmyform-v2-gpt-5.6-luna.json" "${{ github.workspace }}/.bench/evaluator/test/fixtures"
+
+
   benchmark-ohmyform-small-models:
     name: Benchmark · OhMyForm · ${{ matrix.name }}
-    needs: quality
+    needs: [quality, evaluator-preflight]
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[run benchmark]')
     strategy:
       fail-fast: false
@@ -63,8 +109,14 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install and build harness
-        run: npm ci && npm run build
+      - name: Install harness dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Download tested harness build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: harness-dist-${{ github.sha }}
+          path: dist
 
       - name: Prepare pinned campaign inputs
         run: |
@@ -73,7 +125,7 @@ jobs:
           git clone --filter=blob:none https://github.com/HoppR-tech/ccb-ohmyform.git .bench/targets/ccb-ohmyform
           git -C .bench/targets/ccb-ohmyform checkout --detach 0f602c646447cb8efc0ad346a2bf4869c30d2360
           git clone --filter=blob:none --branch benchmark/ohmyform-v2 https://github.com/HoppR-tech/ccb-evaluator.git .bench/evaluator
-          git -C .bench/evaluator checkout --detach 23be795664d48ef6c0f63372e26f008f9aa2dbe6
+          git -C .bench/evaluator checkout --detach 2b0deb6df0e2b3e2fe9627ce361e92cd6d1e2a45
           npm ci --ignore-scripts --prefix .bench/evaluator
           mkdir -p .bench/dependencies/ohmyform-v1-api
           cp .bench/targets/ccb-ohmyform/api/package.json .bench/targets/ccb-ohmyform/api/yarn.lock .bench/dependencies/ohmyform-v1-api/
@@ -120,6 +172,9 @@ jobs:
             .bench/results/${{ matrix.output }}/summary.md
             .bench/results/${{ matrix.output }}/report.md
             .bench/results/${{ matrix.output }}/runs/pair-*.json
+            .bench/results/${{ matrix.output }}/evaluator/*.failure.json
+            .bench/results/${{ matrix.output }}/evaluator/*.result-sanitized.json
+            .bench/results/${{ matrix.output }}/failures/*-candidate-recovery.json
             !.bench/results/${{ matrix.output }}/runs/*-trace.json
           if-no-files-found: warn
           retention-days: 30
