@@ -2,6 +2,15 @@ name: Code quality benchmarks
 
 on:
   workflow_dispatch:
+    inputs:
+      benchmark_tier:
+        description: Paid model tier to run
+        required: true
+        default: small
+        type: choice
+        options:
+          - small
+          - intermediate
   push:
     branches: [feat/ccb-ohmyform-docs]
 
@@ -77,24 +86,38 @@ jobs:
         run: npm run preflight:evaluator -- "${{ github.workspace }}/campaigns/ohmyform-v3-gpt-5.6-luna.json" "${{ github.workspace }}/.bench/evaluator/test/fixtures"
 
 
-  benchmark-ohmyform-small-models:
-    name: Benchmark · OhMyForm · ${{ matrix.name }}
+  benchmark-matrix:
+    name: Benchmark · select paid matrix
     needs: [quality, evaluator-preflight]
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[run benchmark]')
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - name: Select requested model tier
+        id: select
+        env:
+          BENCHMARK_TIER: ${{ inputs.benchmark_tier }}
+          SMALL_MATRIX: >-
+            {"include":[{"name":"GPT-5.6 Luna","campaign":"campaigns/ohmyform-v3-gpt-5.6-luna.json","output":"ohmyform-submission-start-v3-gpt-5.6-luna"},{"name":"Gemini 3.1 Flash Lite","campaign":"campaigns/ohmyform-v3-gemini-3.1-flash-lite.json","output":"ohmyform-submission-start-v3-gemini-3.1-flash-lite"},{"name":"Mistral Small 2603","campaign":"campaigns/ohmyform-v3-mistral-small-2603.json","output":"ohmyform-submission-start-v3-mistral-small-2603"}]}
+          INTERMEDIATE_MATRIX: >-
+            {"include":[{"name":"Claude Sonnet 5","campaign":"campaigns/ohmyform-v3-claude-sonnet-5.json","output":"ohmyform-submission-start-v3-claude-sonnet-5"},{"name":"GPT-5.6 Terra","campaign":"campaigns/ohmyform-v3.json","output":"ohmyform-submission-start-v3"},{"name":"Gemini 3.7 Flash","campaign":"campaigns/ohmyform-v3-gemini-3.7-flash.json","output":"ohmyform-submission-start-v3-gemini-3.7-flash"},{"name":"Mistral Medium 3.5","campaign":"campaigns/ohmyform-v3-mistral-medium-3-5.json","output":"ohmyform-submission-start-v3-mistral-medium-3-5"}]}
+        run: |
+          set -euo pipefail
+          case "${BENCHMARK_TIER:-small}" in
+            small) matrix="$SMALL_MATRIX" ;;
+            intermediate) matrix="$INTERMEDIATE_MATRIX" ;;
+            *) printf 'Unsupported benchmark tier: %s\n' "$BENCHMARK_TIER" >&2; exit 1 ;;
+          esac
+          printf 'matrix=%s\n' "$matrix" >> "$GITHUB_OUTPUT"
+
+  benchmark-ohmyform-models:
+    name: Benchmark · OhMyForm · ${{ matrix.name }}
+    needs: benchmark-matrix
     strategy:
       fail-fast: false
       max-parallel: 3
-      matrix:
-        include:
-          - name: GPT-5.6 Luna
-            campaign: campaigns/ohmyform-v3-gpt-5.6-luna.json
-            output: ohmyform-submission-start-v3-gpt-5.6-luna
-          - name: Gemini 3.1 Flash Lite
-            campaign: campaigns/ohmyform-v3-gemini-3.1-flash-lite.json
-            output: ohmyform-submission-start-v3-gemini-3.1-flash-lite
-          - name: Mistral Small 2603
-            campaign: campaigns/ohmyform-v3-mistral-small-2603.json
-            output: ohmyform-submission-start-v3-mistral-small-2603
+      matrix: ${{ fromJSON(needs.benchmark-matrix.outputs.matrix) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:
