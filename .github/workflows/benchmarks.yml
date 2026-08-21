@@ -69,8 +69,8 @@ jobs:
           set -euo pipefail
           mkdir -p .bench
           git clone --filter=blob:none --branch benchmark/ohmyform-v2 https://github.com/HoppR-tech/ccb-evaluator.git .bench/evaluator
-          git -C .bench/evaluator checkout --detach 2b0deb6df0e2b3e2fe9627ce361e92cd6d1e2a45
-          test "$(git -C .bench/evaluator rev-parse HEAD)" = "2b0deb6df0e2b3e2fe9627ce361e92cd6d1e2a45"
+          git -C .bench/evaluator checkout --detach b022658fedc4c1e5463efceb755a96abde0fd4fe
+          test "$(git -C .bench/evaluator rev-parse HEAD)" = "b022658fedc4c1e5463efceb755a96abde0fd4fe"
           npm ci --ignore-scripts --prefix .bench/evaluator
 
       - name: Exercise passing and failing fixtures through ProcessEvaluator
@@ -125,7 +125,7 @@ jobs:
           git clone --filter=blob:none https://github.com/HoppR-tech/ccb-ohmyform.git .bench/targets/ccb-ohmyform
           git -C .bench/targets/ccb-ohmyform checkout --detach 0f602c646447cb8efc0ad346a2bf4869c30d2360
           git clone --filter=blob:none --branch benchmark/ohmyform-v2 https://github.com/HoppR-tech/ccb-evaluator.git .bench/evaluator
-          git -C .bench/evaluator checkout --detach 2b0deb6df0e2b3e2fe9627ce361e92cd6d1e2a45
+          git -C .bench/evaluator checkout --detach b022658fedc4c1e5463efceb755a96abde0fd4fe
           npm ci --ignore-scripts --prefix .bench/evaluator
           mkdir -p .bench/dependencies/ohmyform-v1-api
           cp .bench/targets/ccb-ohmyform/api/package.json .bench/targets/ccb-ohmyform/api/yarn.lock .bench/dependencies/ohmyform-v1-api/

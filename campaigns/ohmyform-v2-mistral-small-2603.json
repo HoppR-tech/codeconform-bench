@@ -66,7 +66,7 @@
   "evaluator": {
     "runner": {
       "path": "../.bench/evaluator/runners/typescript/evaluate.mjs",
-      "digest": "sha256:0592de782a6d9c7b9f7365b8d61f2c351f0442305163d3f3781d53b8524a72e1"
+      "digest": "sha256:7388ec346e10e6706403a451d371f0c508bdfc99c4940614ac24928973318352"
     },
     "command": [
       "node",
