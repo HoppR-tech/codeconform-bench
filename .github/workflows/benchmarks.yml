@@ -101,7 +101,7 @@ jobs:
           SMALL_MATRIX: >-
             {"include":[{"name":"GPT-5.6 Luna","campaign":"campaigns/ohmyform-v4-gpt-5.6-luna.json","output":"ohmyform-submission-start-v4-gpt-5.6-luna"},{"name":"Gemini 3.1 Flash Lite","campaign":"campaigns/ohmyform-v4-gemini-3.1-flash-lite.json","output":"ohmyform-submission-start-v4-gemini-3.1-flash-lite"},{"name":"Mistral Small 2603","campaign":"campaigns/ohmyform-v4-mistral-small-2603.json","output":"ohmyform-submission-start-v4-mistral-small-2603"}]}
           INTERMEDIATE_MATRIX: >-
-            {"include":[{"name":"Claude Sonnet 5","campaign":"campaigns/ohmyform-v4-claude-sonnet-5.json","output":"ohmyform-submission-start-v4-claude-sonnet-5"},{"name":"GPT-5.6 Terra","campaign":"campaigns/ohmyform-v4.json","output":"ohmyform-submission-start-v4"},{"name":"Gemini 3.7 Flash","campaign":"campaigns/ohmyform-v4-gemini-3.7-flash.json","output":"ohmyform-submission-start-v4-gemini-3.7-flash"},{"name":"Mistral Medium 3.5","campaign":"campaigns/ohmyform-v4-mistral-medium-3-5.json","output":"ohmyform-submission-start-v4-mistral-medium-3-5"}]}
+            {"include":[{"name":"GPT-5.6 Terra","campaign":"campaigns/ohmyform-v4.json","output":"ohmyform-submission-start-v4"},{"name":"Gemini 3.7 Flash","campaign":"campaigns/ohmyform-v4-gemini-3.7-flash.json","output":"ohmyform-submission-start-v4-gemini-3.7-flash"},{"name":"Mistral Medium 3.5","campaign":"campaigns/ohmyform-v4-mistral-medium-3-5.json","output":"ohmyform-submission-start-v4-mistral-medium-3-5"}]}
         run: |
           set -euo pipefail
           case "${BENCHMARK_TIER:-small}" in
