@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 3,
+  "stage": "iteration",
+  "promptStyle": "neutral",
+  "campaignId": "stage-a-ohmyform-device-metadata-capture-gpt-5.6-luna",
+  "target": {
+    "checkout": "../../.bench/targets/ccb-ohmyform",
+    "repository": "https://github.com/HoppR-tech/ccb-ohmyform.git",
+    "commit": "0f602c646447cb8efc0ad346a2bf4869c30d2360",
+    "tree": "48f9f6659f2e775c3b28bc51402e785f9e42553b",
+    "digest": "sha256:67d029e566ce918a0b4bf738b3535b8d2fc3f62e5ad6cea20040b20206d923ee"
+  },
+  "task": {
+    "id": "ohmyform-device-metadata-capture",
+    "prompt": "When a submission is started, capture the visitor's device metadata — the\nlanguage, name, and type supplied with the request — onto the persisted\nsubmission, so that analytics can later group submissions by device. The\nstorage shape and property names are up to you; the values must be\nretrievable from the submission instance returned by and passed to\npersistence. Everything else about the flow must keep its current behavior.\nProduce production-quality code: type-safe, no suppressed diagnostics, no\ndynamic code execution or process-spawning APIs."
+  },
+  "repetitions": 3,
+  "order": [
+    "baseline",
+    "grace"
+  ],
+  "model": {
+    "id": "openai/gpt-5.6-luna",
+    "providerOrder": [
+      "openai"
+    ],
+    "allowFallbacks": false,
+    "maxTokens": 32000
+  },
+  "agent": {
+    "maxSteps": 200,
+    "maxCostUsd": 5,
+    "maxTotalTokens": 2000000,
+    "maxToolOutputBytes": 524288,
+    "maxCommandCalls": 8,
+    "wallClockSeconds": 1800
+  },
+  "commandExecutor": {
+    "image": "node@sha256:cd59a61258b82b86c1ff0ead50c8a689f6c3483c5ed21036e11ee741add419eb",
+    "commands": {
+      "api-check": [
+        "yarn",
+        "--cwd",
+        "api",
+        "test",
+        "--runInBand"
+      ]
+    },
+    "readOnlyMounts": [
+      {
+        "source": "../../.bench/targets/ccb-ohmyform/api/node_modules",
+        "target": "/workspace/api/node_modules",
+        "digest": "sha256:22bbaae907d938ba5953553e9bfc62ddb8d399e24dc0e1f73e538e4120f6399b"
+      }
+    ]
+  },
+  "functionalGate": {
+    "command": [
+      "node",
+      "/opt/ccb/probe/probe.cjs"
+    ],
+    "readOnlyMounts": [
+      {
+        "source": "../tasks/stage-a/ohmyform-device-metadata-capture/probes",
+        "target": "/opt/ccb/probe",
+        "digest": "sha256:5adf12d20d852664c9735a05afd612f5e28253fc0a66cac355f71e4f7223f598"
+      }
+    ],
+    "expected": {
+      "deviceLanguageCaptured": true,
+      "deviceNameCaptured": true,
+      "deviceTypeCaptured": true,
+      "deviceObjectRetained": true
+    }
+  },
+  "evaluator": {
+    "runner": {
+      "path": "../../.bench/evaluator/runners/typescript/evaluate.mjs",
+      "digest": "sha256:7388ec346e10e6706403a451d371f0c508bdfc99c4940614ac24928973318352"
+    },
+    "command": [
+      "node",
+      "{runner}",
+      "--candidate",
+      "{candidate}",
+      "--rule-config",
+      "{rulePack}",
+      "--result",
+      "{result}"
+    ],
+    "rulePack": {
+      "id": "ohmyform-device-metadata-capture",
+      "version": "1",
+      "digest": "sha256:f8c789b8e815c77de2acdb4fa1535372afb6455bec47a66d954db69f52cb8ce8",
+      "path": "../tasks/stage-a/ohmyform-device-metadata-capture/rules/rule-pack.cjs"
+    }
+  },
+  "grace": {
+    "mcpUrl": "https://grace-mcp.hoppr.tech/mcp/ccb-benchmark-8169",
+    "tokenEnv": "GRACE_MCP_TOKEN"
+  },
+  "outputDirectory": "../../.bench/results/stage-a-ohmyform-device-metadata-capture-gpt-5.6-luna",
+  "bootstrapSamples": 10000,
+  "seed": 20260823
+}

@@ -8,7 +8,7 @@ import { safeReason, sanitizeText } from './safe-diagnostics.js'
 
 const SYSTEM_PROMPT = `You are editing one candidate repository for a code-quality benchmark.
 Use only the declared tools. Do not request web access, external repositories, hidden tests, evaluator rules, credentials, or paths outside the candidate checkout.
-Inspect before writing, make the smallest complete change, run the approved validation command, then finish with a concise summary.`
+Inspect before writing, make the smallest complete change, run the approved validation commands as needed, then finish with a concise summary.`
 const PROMPT_TOKEN_OVERHEAD = 1_024
 const COST_SCALE = 1_000_000_000_000
 const MAX_REQUEST_RETRIES = 3
@@ -43,6 +43,7 @@ class AgentLimitError extends AgentFailureError {
     | 'token_budget_exceeded'
     | 'cost_budget_exceeded'
     | 'tool_output_budget_exceeded'
+    | 'wall_clock_exceeded'
   >, message: string) {
     super(code, 'agent_error', message)
   }
@@ -228,7 +229,14 @@ export class OpenRouterAgent {
     }
 
     try {
+      const deadlineAt = this.limits.wallClockSeconds === undefined ? null : this.now() + this.limits.wallClockSeconds * 1_000
+      const assertWallClock = (): void => {
+        if (deadlineAt !== null && this.now() >= deadlineAt) {
+          throw new AgentLimitError('wall_clock_exceeded', 'agent wall-clock budget exhausted')
+        }
+      }
       for (let step = 1; step <= this.limits.maxSteps; step += 1) {
+        assertWallClock()
         const notice = CLOSURE_NOTICES.get(this.limits.maxSteps - step + 1)
         if (notice) messages.push({ role: 'system', content: notice })
         const remainingTokens = this.limits.maxTotalTokens - promptTokens - completionTokens
@@ -239,6 +247,7 @@ export class OpenRouterAgent {
         }
 
         counters.stepsUsed += 1
+        assertWallClock()
         let response
         try {
           response = await this.sendWithRetries((timeoutMs) => {

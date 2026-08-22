@@ -1,0 +1,50 @@
+id: ts-field-validator-feature
+title: Implement validateProfile with structured errors per the documented rule table
+language: typescript
+strata:
+  type: feature
+  difficulty: easy
+promptStyle: neutral
+statement: >-
+  The module validate.js exports validateProfile(fields). It receives a plain
+  object of user-supplied profile fields and returns an array of structured
+  error objects, one per violated rule, in the order the rules are listed. An
+  empty array means the profile is valid; the function never throws on
+  ordinary bad input. Implement it so that every rule below holds:
+
+  1. username — required: a non-empty string of 3-20 characters matching
+     /^[a-z0-9_]+$/. Violations:
+     { field: 'username', code: 'required' | 'format' }.
+  2. email — required when fields.emailRequired is true; otherwise optional,
+     but when present it must contain exactly one '@' with non-empty local
+     part and domain. Violations:
+     { field: 'email', code: 'required' | 'format' }.
+  3. age — optional; when present it must be an integer between 13 and 120.
+     Violation: { field: 'age', code: 'range' }.
+  4. website — optional; when present and not an empty string it must start
+     with 'https://'. Violation: { field: 'website', code: 'format' }.
+
+  Example: { username: 'Bad Name', emailRequired: true, age: 200,
+  website: 'ftp://x' } yields four errors, in the order username, email,
+  age, website. Produce production-quality code: type-safe, no suppressed
+  diagnostics, add focused table-driven tests, and no dynamic code execution
+  or process-spawning APIs.
+approvedCommands:
+  - check
+budgets:
+  maxSteps: 200
+  maxCostUsd: 5
+  maxTotalTokens: 2000000
+  maxToolOutputBytes: 524288
+  maxCommandCalls: 8
+  wallClockSeconds: 1800
+target:
+  repository: in-repo fixture fixtures/ts-micro/field-validation
+  commit: resolved-at-bootstrap
+  tree: resolved-at-bootstrap
+  digest: resolved-at-bootstrap
+protocolNotes: >-
+  Probe is self-contained behavioral and table-driven over the public entry;
+  characterization suite covers rule ordering boundaries (empty website,
+  age bounds, float age) that the statement leaves implicit but the rule
+  table fixes. Image digest is node@sha256 pinned at bootstrap.

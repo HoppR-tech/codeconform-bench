@@ -55,6 +55,7 @@ test('functional gate returns deterministic bounded mismatch evidence in the hos
     code: 'passed',
     detail: null,
     evidence: null,
+    characterization: null,
   })
 
   const { formRetained: _removed, ...regular } = expected.regular
@@ -93,9 +94,9 @@ test('functional gate returns deterministic bounded mismatch evidence in the hos
 
 test('functional gate distinguishes command exit, signal, and timeout with bounded redacted stderr', async () => {
   const exit = await gateResult({ exitCode: 7, stderr: 'failed' }).run('/candidate')
-  assert.deepEqual(exit, { passed: false, phase: 'command', code: 'command_exit', detail: 'exit 7: failed', evidence: null })
+  assert.deepEqual(exit, { passed: false, phase: 'command', code: 'command_exit', detail: 'exit 7: failed', evidence: null, characterization: null })
   const signal = await gateResult({ exitCode: null, signal: 'SIGTERM' }).run('/candidate')
-  assert.deepEqual(signal, { passed: false, phase: 'command', code: 'command_signal', detail: 'SIGTERM', evidence: null })
+  assert.deepEqual(signal, { passed: false, phase: 'command', code: 'command_signal', detail: 'SIGTERM', evidence: null, characterization: null })
   const timeout = await gateResult({
     exitCode: null,
     signal: 'SIGKILL',
@@ -125,6 +126,7 @@ test('functional gate classifies every probe protocol failure', async () => {
       code,
       detail,
       evidence: null,
+      characterization: null,
     })
   }
 })
@@ -172,6 +174,7 @@ test('functional gate rejects payloads over byte, node, and depth limits', async
     code: 'probe_payload_limits_exceeded',
     detail: 'functional probe payload exceeded diagnostic limits',
     evidence: null,
+    characterization: null,
   })
 
   const overNodes = await gateResult({
@@ -185,4 +188,47 @@ test('functional gate rejects payloads over byte, node, and depth limits', async
   const overDepth = await gateResult({ stdout: output(nested) }).run('/candidate')
   assert.equal(overDepth.code, 'probe_payload_limits_exceeded')
   assert.equal(overDepth.evidence, null)
+})
+
+test('functional gate parses nonce-bound characterization neighbors', async () => {
+  const neighbors = (entries: unknown, nonce = 'trusted-nonce'): string =>
+    `CCB_READY ${nonce}\nCCB_RESULT ${nonce} ${Buffer.from(JSON.stringify(expected)).toString('base64')}\nCCB_NEIGHBORS ${nonce} ${Buffer.from(JSON.stringify(entries)).toString('base64')}\n`
+
+  const green = await gateResult({ stdout: neighbors([
+    { name: 'anonymous-parity', ok: true },
+    { name: 'missing-ip-fallback', ok: true, detail: 'fallback applied' },
+  ]) }).run('/candidate')
+  assert.deepEqual(green, {
+    passed: true,
+    phase: 'assertion',
+    code: 'passed',
+    detail: null,
+    evidence: null,
+    characterization: { total: 2, failed: 0 },
+  })
+
+  const red = await gateResult({ stdout: neighbors([
+    { name: 'neighbor-a', ok: true },
+    { name: 'neighbor-b', ok: false, detail: 'divergence' },
+    { name: 'neighbor-c', ok: false },
+  ]) }).run('/candidate')
+  assert.equal(red.passed, true)
+  const wrongNonce = await gateResult({
+    stdout: `CCB_READY trusted-nonce\nCCB_RESULT trusted-nonce ${Buffer.from(JSON.stringify(expected)).toString('base64')}\nCCB_NEIGHBORS other-nonce ${Buffer.from(JSON.stringify([{ name: 'x', ok: true }])).toString('base64')}\n`,
+  }).run('/candidate')
+  assert.equal(wrongNonce.passed, false)
+  assert.equal(wrongNonce.phase, 'probe')
+  assert.equal(wrongNonce.code, 'characterization_mismatch')
+  assert.equal(wrongNonce.characterization, null)
+
+  for (const payload of ['not base64 %%%', Buffer.from('not json').toString('base64'), '"scalar"', [{ nope: true }]]) {
+    const rejected = await gateResult({ stdout: neighbors(payload) }).run('/candidate')
+    assert.equal(rejected.passed, false, JSON.stringify(payload))
+    assert.equal(rejected.code, 'characterization_mismatch', JSON.stringify(payload))
+  }
+
+  const absent = await gateResult({
+    stdout: `CCB_READY trusted-nonce\nCCB_RESULT trusted-nonce ${Buffer.from(JSON.stringify(expected)).toString('base64')}\n`,
+  }).run('/candidate')
+  assert.equal(absent.characterization, null)
 })

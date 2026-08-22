@@ -1,0 +1,45 @@
+id: ohmyform-submission-persistence-port
+title: Route the submission-start flow through a domain-side persistence abstraction
+language: typescript
+strata:
+  type: refactoring
+  difficulty: medium
+promptStyle: neutral
+statement: >-
+  Make the API submission-start flow depend on a persistence abstraction
+  defined on the domain/application side rather than directly on the TypeORM
+  repository, while preserving exactly the observable semantics of the flow.
+  The public GraphQL submissionStart contract, its validation, token hashing,
+  anonymization, persistence, and progress-result behavior must not change.
+  No class, port, or adapter names are prescribed; any faithful structure is
+  acceptable. Do not refactor unrelated submission features. Produce
+  production-quality code: cohesive and type-safe files, no suppressed
+  diagnostics, focused tests for the new seam covering success and failure
+  behavior, and no dynamic code execution or process-spawning APIs.
+
+  Preserve these observable semantics: hash the input token through the
+  injected hash dependency and store the returned hash; persist and return the
+  exact submission instance passed to and returned from persistence; retain
+  the form, user, and device for regular submissions; initialize elapsed time
+  and completion percentage to zero; anonymize a supplied IP address; for
+  anonymous submissions remove the user and apply the existing missing-IP
+  fallback.
+approvedCommands:
+  - api-check
+budgets:
+  maxSteps: 200
+  maxCostUsd: 5
+  maxTotalTokens: 2000000
+  maxToolOutputBytes: 524288
+  maxCommandCalls: 8
+  wallClockSeconds: 1800
+target:
+  repository: https://github.com/HoppR-tech/ccb-ohmyform.git
+  commit: 0f602c646447cb8efc0ad346a2bf4869c30d2360
+  tree: 48f9f6659f2e775c3b28bc51402e785f9e42553b
+  digest: sha256:67d029e566ce918a0b4bf738b3535b8d2fc3f62e5ad6cea20040b20206d923ee
+protocolNotes: >-
+  Probe is behavioral only (composition-root construction with fake
+  dependencies, public entry invocation, regular/anonymous parity). Structural
+  conformance — absence of @nestjs/typeorm imports in the service/use-case
+  file — belongs to the rule pack slice under rules/, not to this gate.

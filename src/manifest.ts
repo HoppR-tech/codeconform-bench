@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { dirname, isAbsolute, resolve } from 'node:path'
-import type { CampaignManifest, Condition } from './contracts.js'
+import type { CampaignManifest, Condition, JsonValue, PromptStyle, Stage } from './contracts.js'
 
 const SHA_40 = /^[0-9a-f]{40}$/
 const SHA_64 = /^sha256:[0-9a-f]{64}$/
@@ -54,14 +54,44 @@ function mounts(value: unknown, name: string, baseDirectory: string, targetPatte
   })
 }
 
+function jsonValue(value: unknown, name: string): JsonValue {
+  if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value
+  if (Array.isArray(value)) return value.map((entry, index) => jsonValue(entry, `${name}.${index}`))
+  const record = object(value, name)
+  const result: { [key: string]: JsonValue } = {}
+  for (const [key, entry] of Object.entries(record)) result[key] = jsonValue(entry, `${name}.${key}`)
+  return result
+}
+
 export function parseManifest(value: unknown, baseDirectory = process.cwd()): CampaignManifest {
   const root = object(value, 'manifest')
-  if (root.schemaVersion !== 2) throw new Error('schemaVersion must be 2')
+  if (root.schemaVersion !== 2 && root.schemaVersion !== 3) throw new Error('schemaVersion must be 2 or 3')
+  const isV3 = root.schemaVersion === 3
+
+  let stage: Stage
+  let promptStyle: PromptStyle
+  if (isV3) {
+    if (root.stage !== 'iteration' && root.stage !== 'headline') throw new Error('stage must be iteration or headline')
+    stage = root.stage
+    if (root.promptStyle !== 'neutral' && root.promptStyle !== 'prescribed') throw new Error('promptStyle must be neutral or prescribed')
+    promptStyle = root.promptStyle
+  } else {
+    stage = 'headline'
+    promptStyle = 'prescribed'
+  }
+
 
   const target = object(root.target, 'target')
   const task = object(root.task, 'task')
   const model = object(root.model, 'model')
   const agent = object(root.agent, 'agent')
+  const maxCommandCalls = isV3 ? integer(agent.maxCommandCalls, 'agent.maxCommandCalls', 1) : 1
+  const wallClockSeconds = root.agent && typeof root.agent === 'object' && !Array.isArray(root.agent)
+    ? (root.agent as Record<string, unknown>).wallClockSeconds
+    : undefined
+  const wallClock = wallClockSeconds === undefined
+    ? undefined
+    : integer(wallClockSeconds, 'agent.wallClockSeconds', 1)
   const grace = object(root.grace, 'grace')
   const commandExecutor = object(root.commandExecutor, 'commandExecutor')
   const functionalGate = object(root.functionalGate, 'functionalGate')
@@ -74,6 +104,7 @@ export function parseManifest(value: unknown, baseDirectory = process.cwd()): Ca
   const functionalGateMounts = mounts(functionalGate.readOnlyMounts ?? [], 'functionalGate.readOnlyMounts', baseDirectory, /^\/opt\/ccb(?:\/[^/]+)+$/)
   const functionalGateCommand = stringArray(functionalGate.command, 'functionalGate.command')
   if (functionalGateCommand.length === 0) throw new Error('functionalGate.command must not be empty')
+  const expectedContract = functionalGate.expected === undefined ? undefined : jsonValue(functionalGate.expected, 'functionalGate.expected')
   const order = stringArray(root.order, 'order') as Condition[]
 
   if (order.length !== 2 || new Set(order).size !== 2 || !order.includes('baseline') || !order.includes('grace')) {
@@ -119,7 +150,9 @@ export function parseManifest(value: unknown, baseDirectory = process.cwd()): Ca
   }
 
   return {
-    schemaVersion: 2,
+    schemaVersion: root.schemaVersion as 2 | 3,
+    stage,
+    promptStyle,
     campaignId: string(root.campaignId, 'campaignId', 120),
     target: {
       checkout,
@@ -147,9 +180,15 @@ export function parseManifest(value: unknown, baseDirectory = process.cwd()): Ca
       maxCostUsd: positiveNumber(agent.maxCostUsd, 'agent.maxCostUsd'),
       maxTotalTokens: integer(agent.maxTotalTokens, 'agent.maxTotalTokens', 1),
       maxToolOutputBytes: integer(agent.maxToolOutputBytes, 'agent.maxToolOutputBytes', 1),
+      maxCommandCalls,
+      ...(wallClock === undefined ? {} : { wallClockSeconds: wallClock }),
     },
     commandExecutor: { image, commands, readOnlyMounts },
-    functionalGate: { command: functionalGateCommand, readOnlyMounts: functionalGateMounts },
+    functionalGate: {
+      command: functionalGateCommand,
+      readOnlyMounts: functionalGateMounts,
+      ...(expectedContract === undefined ? {} : { expected: expectedContract }),
+    },
     evaluator: {
       command: evaluatorCommand,
       runner: {

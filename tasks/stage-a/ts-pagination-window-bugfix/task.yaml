@@ -1,0 +1,51 @@
+id: ts-pagination-window-bugfix
+title: Fix the off-by-one on the last page of the pagination window helper
+language: typescript
+strata:
+  type: bugfix
+  difficulty: easy
+promptStyle: neutral
+statement: >-
+  The module pages.js exports pageWindow(totalItems, pageSize, currentPage).
+  Given a total number of items, a fixed page size, and the page the user is
+  currently viewing, it returns the inclusive 1-based window of page numbers
+  to render. The window always contains exactly pageSize consecutive numbers
+  positioned so the current page sits inside it, and the window is clamped to
+  never start below page 1 and never end past the last page; when both edges
+  cannot fit, priority goes to showing the first pages. The helper currently
+  misbehaves near the end of the page range. Fix it so that every example
+  below holds (result keeps its { start, end, pageCount } shape):
+
+  - (100 items, size 10, page 1) -> window 1..10
+  - (100 items, size 10, page 5) -> window 1..10
+  - (120 items, size 10, page 6) -> window 2..11
+  - (100 items, size 10, page 10) -> window 1..10
+  - (7 items, size 3, page 2) -> window 1..3
+  - (7 items, size 3, page 3) -> window 1..3
+  - (5 items, size 10, page 1) -> window 1..1
+
+  Invalid inputs (negative totals, zero or negative page sizes, non-positive
+  or non-integer current pages) must keep throwing TypeError. Do not change
+  the public API. Produce production-quality code: type-safe, no suppressed
+  diagnostics, add focused tests covering the boundary cases above, and no
+  dynamic code execution or process-spawning APIs.
+approvedCommands:
+  - check
+budgets:
+  maxSteps: 200
+  maxCostUsd: 5
+  maxTotalTokens: 2000000
+  maxToolOutputBytes: 524288
+  maxCommandCalls: 8
+  wallClockSeconds: 1800
+target:
+  repository: in-repo fixture fixtures/ts-micro/pagination
+  commit: resolved-at-bootstrap
+  tree: resolved-at-bootstrap
+  digest: resolved-at-bootstrap
+protocolNotes: >-
+  Probe is self-contained behavioral: imports pages.js from the candidate
+  workspace and checks the documented table plus a characterization suite
+  (pageCount derivation, single-page case, input validation). Image digest is
+  node@sha256 pinned at bootstrap; target digests are computed by
+  scripts/stage-a-bootstrap.sh after git init + initial commit.

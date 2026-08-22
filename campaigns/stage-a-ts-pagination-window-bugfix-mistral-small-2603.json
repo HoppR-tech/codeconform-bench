@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 3,
+  "stage": "iteration",
+  "promptStyle": "neutral",
+  "campaignId": "stage-a-ts-pagination-window-bugfix-mistral-small-2603",
+  "target": {
+    "checkout": "../../.bench/targets/ts-pagination-window-bugfix",
+    "repository": "in-repo:fixtures/ts-micro/ts-pagination-window-bugfix",
+    "commit": "a5233104697cf6ab3449ed31cfd7312d0a7a396b",
+    "tree": "e2d88b4de446fde903fee7d9100b29f50f87e82f",
+    "digest": "sha256:6e54d37623d2efc503d62409bce656eec6c96bd6e04192cf80b4f4ea26e473c6"
+  },
+  "task": {
+    "id": "ts-pagination-window-bugfix",
+    "prompt": "The module pages.js exports pageWindow(totalItems, pageSize, currentPage).\nGiven a total number of items, a fixed page size, and the page the user is\ncurrently viewing, it returns the inclusive 1-based window of page numbers\nto render. The window always contains exactly pageSize consecutive numbers\npositioned so the current page sits inside it, and the window is clamped to\nnever start below page 1 and never end past the last page; when both edges\ncannot fit, priority goes to showing the first pages. The helper currently\nmisbehaves near the end of the page range. Fix it so that every example\nbelow holds (result keeps its { start, end, pageCount } shape):\n\n- (100 items, size 10, page 1) -> window 1..10\n- (100 items, size 10, page 5) -> window 1..10\n- (120 items, size 10, page 6) -> window 2..11\n- (100 items, size 10, page 10) -> window 1..10\n- (7 items, size 3, page 2) -> window 1..3\n- (7 items, size 3, page 3) -> window 1..3\n- (5 items, size 10, page 1) -> window 1..1\n\nInvalid inputs (negative totals, zero or negative page sizes, non-positive\nor non-integer current pages) must keep throwing TypeError. Do not change\nthe public API. Produce production-quality code: type-safe, no suppressed\ndiagnostics, add focused tests covering the boundary cases above, and no\ndynamic code execution or process-spawning APIs."
+  },
+  "repetitions": 3,
+  "order": [
+    "baseline",
+    "grace"
+  ],
+  "model": {
+    "id": "mistralai/mistral-small-2603",
+    "providerOrder": [
+      "mistral"
+    ],
+    "allowFallbacks": false,
+    "maxTokens": 32000
+  },
+  "agent": {
+    "maxSteps": 200,
+    "maxCostUsd": 5,
+    "maxTotalTokens": 2000000,
+    "maxToolOutputBytes": 524288,
+    "maxCommandCalls": 8,
+    "wallClockSeconds": 1800
+  },
+  "commandExecutor": {
+    "image": "node@sha256:cd59a61258b82b86c1ff0ead50c8a689f6c3483c5ed21036e11ee741add419eb",
+    "commands": {
+      "check": [
+        "node",
+        "--test"
+      ]
+    },
+    "readOnlyMounts": []
+  },
+  "functionalGate": {
+    "command": [
+      "node",
+      "/opt/ccb/probe/probe.cjs"
+    ],
+    "readOnlyMounts": [],
+    "expected": {
+      "allWindowsOk": true
+    }
+  },
+  "evaluator": {
+    "runner": {
+      "path": "../../.bench/evaluator/runners/typescript/evaluate.mjs",
+      "digest": "sha256:7388ec346e10e6706403a451d371f0c508bdfc99c4940614ac24928973318352"
+    },
+    "command": [
+      "node",
+      "{runner}",
+      "--candidate",
+      "{candidate}",
+      "--rule-config",
+      "{rulePack}",
+      "--result",
+      "{result}"
+    ],
+    "rulePack": {
+      "id": "ts-pagination-window-bugfix",
+      "version": "1",
+      "digest": "sha256:809dfa803ea0d116834759e72fb9acb4cb6b25cdb60993cc3b185559c33b006f",
+      "path": "../tasks/stage-a/ts-pagination-window-bugfix/rules/rule-pack.cjs"
+    }
+  },
+  "grace": {
+    "mcpUrl": "https://grace-mcp.hoppr.tech/mcp/ccb-benchmark-8169",
+    "tokenEnv": "GRACE_MCP_TOKEN"
+  },
+  "outputDirectory": "../../.bench/results/stage-a-ts-pagination-window-bugfix-mistral-small-2603",
+  "bootstrapSamples": 10000,
+  "seed": 20260824
+}

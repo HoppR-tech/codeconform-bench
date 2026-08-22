@@ -79,3 +79,112 @@ test('candidate tools enforce a cumulative workspace quota', async () => {
   const tools = new CandidateTools(root, async () => ({ exitCode: 0, signal: null, stdout: '', stderr: '', timedOut: false }), new Set())
   await assert.rejects(tools.execute('write_file', JSON.stringify({ path: 'extra.txt', content: 'x' })), /workspace size limit/)
 })
+
+test('read_file returns bounded 1-based line windows', async () => {
+  const root = await mkdtemp(resolve(tmpdir(), 'ccb-tools-read-'))
+  await writeFile(resolve(root, 'lines.txt'), Array.from({ length: 10 }, (_, index) => `line-${index + 1}`).join('\n') + '\n')
+  const tools = new CandidateTools(root, async () => ({ exitCode: 0, signal: null, stdout: '', stderr: '', timedOut: false }), new Set())
+
+  assert.match(await tools.execute('read_file', JSON.stringify({ path: 'lines.txt' })), /line-10/)
+  assert.equal(await tools.execute('read_file', JSON.stringify({ path: 'lines.txt', offset: 3, limit: 2 })), 'line-3\nline-4\n… 6 more lines')
+  assert.equal(await tools.execute('read_file', JSON.stringify({ path: 'lines.txt', offset: 9 })), 'line-9\nline-10')
+  await assert.rejects(tools.execute('read_file', JSON.stringify({ path: 'lines.txt', offset: 0 })), /offset must be an integer >= 1/)
+  await assert.rejects(tools.execute('read_file', JSON.stringify({ path: 'lines.txt', limit: 1.5 })), /limit must be an integer >= 1/)
+  await assert.rejects(tools.execute('read_file', JSON.stringify({ path: 'lines.txt', offset: 99 })), /beyond end of file/)
+})
+
+test('edit replaces exact matches and reports ambiguous locations', async () => {
+  const root = await mkdtemp(resolve(tmpdir(), 'ccb-tools-edit-'))
+  await writeFile(resolve(root, 'code.ts'), 'const a = 1;\nconst a = 2;\n')
+  const tools = new CandidateTools(root, async () => ({ exitCode: 0, signal: null, stdout: '', stderr: '', timedOut: false }), new Set())
+
+  await assert.rejects(tools.execute('edit', JSON.stringify({ path: 'code.ts', old_string: 'missing', new_string: 'x' })), /old_string not found/)
+  await assert.rejects(tools.execute('edit', JSON.stringify({ path: 'code.ts', old_string: 'const a = ', new_string: 'let a = ' })), /old_string matches 2 locations/)
+  assert.equal(await tools.execute('edit', JSON.stringify({ path: 'code.ts', old_string: 'const a = 1;', new_string: 'const b = 1;' })), 'edited')
+  assert.equal(await readFile(resolve(root, 'code.ts'), 'utf8'), 'const b = 1;\nconst a = 2;\n')
+  assert.equal(await tools.execute('edit', JSON.stringify({ path: 'code.ts', old_string: 'const ', new_string: 'let ', replace_all: true })), 'edited')
+  assert.equal(await readFile(resolve(root, 'code.ts'), 'utf8'), 'let b = 1;\nlet a = 2;\n')
+})
+
+test('grep bounds results, honors include filters, and rejects invalid patterns', async () => {
+  const root = await mkdtemp(resolve(tmpdir(), 'ccb-tools-grep-'))
+  await mkdir(resolve(root, 'src'))
+  for (let index = 0; index < 250; index += 1) {
+    await writeFile(resolve(root, 'src', `gen-${String(index).padStart(3, '0')}.ts`), `needle ${index}\n`)
+  }
+  await writeFile(resolve(root, 'src', 'exact.ts'), 'const needle = 1;\nskipped\n')
+  await writeFile(resolve(root, 'README.md'), 'needle in docs\n')
+  const tools = new CandidateTools(root, async () => ({ exitCode: 0, signal: null, stdout: '', stderr: '', timedOut: false }), new Set())
+
+  await assert.rejects(tools.execute('grep', JSON.stringify({ pattern: '(' })), /invalid grep pattern/)
+  const filtered = await tools.execute('grep', JSON.stringify({ pattern: 'needle', include: '*.md' }))
+  assert.equal(filtered, 'README.md:1:needle in docs')
+  const single = await tools.execute('grep', JSON.stringify({ pattern: 'const needle' }))
+  assert.equal(single, 'src/exact.ts:1:const needle = 1;')
+  const bounded = await tools.execute('grep', JSON.stringify({ pattern: 'needle' }))
+  const lines = bounded.split('\n')
+  assert.equal(lines.length, 201)
+  assert.equal(lines[200], '… results truncated')
+})
+
+test('find_files matches glob patterns over relative paths', async () => {
+  const root = await mkdtemp(resolve(tmpdir(), 'ccb-tools-find-'))
+  await mkdir(resolve(root, 'src/nested'), { recursive: true })
+  await writeFile(resolve(root, 'top.ts'), '')
+  await writeFile(resolve(root, 'src', 'mid.ts'), '')
+  await writeFile(resolve(root, 'src', 'nested', 'deep.ts'), '')
+  const tools = new CandidateTools(root, async () => ({ exitCode: 0, signal: null, stdout: '', stderr: '', timedOut: false }), new Set())
+
+  assert.equal(await tools.execute('find_files', JSON.stringify({ glob: '**/*.ts' })), 'src/mid.ts\nsrc/nested/deep.ts')
+  assert.equal(await tools.execute('find_files', JSON.stringify({ glob: '*.ts' })), 'top.ts')
+  assert.equal(await tools.execute('find_files', JSON.stringify({ glob: 'src/*.ts' })), 'src/mid.ts')
+})
+
+test('grep and find_files skip symlinks instead of failing', async () => {
+  const root = await mkdtemp(resolve(tmpdir(), 'ccb-tools-link-'))
+  await mkdir(resolve(root, 'outside'))
+  await writeFile(resolve(root, 'outside', 'secret.ts'), 'needle\n')
+  await writeFile(resolve(root, 'local.ts'), 'needle here\n')
+  await symlink(resolve(root, 'outside'), resolve(root, 'linked'))
+  const tools = new CandidateTools(root, async () => ({ exitCode: 0, signal: null, stdout: '', stderr: '', timedOut: false }), new Set())
+
+  assert.equal(await tools.execute('grep', JSON.stringify({ pattern: 'needle' })), 'local.ts:1:needle here\noutside/secret.ts:1:needle')
+  assert.equal(await tools.execute('find_files', JSON.stringify({ glob: '**/*.ts' })), 'outside/secret.ts')
+  assert.equal(await tools.execute('find_files', JSON.stringify({ glob: '*.ts' })), 'local.ts')
+})
+
+test('run_command honors the configured call budget', async () => {
+  const root = await mkdtemp(resolve(tmpdir(), 'ccb-tools-budget-'))
+  const commands: string[] = []
+  const tools = new CandidateTools(root, async (name) => {
+    commands.push(name)
+    return { exitCode: 0, signal: null, stdout: 'ok', stderr: '', timedOut: false }
+  }, new Set(['check']), 2)
+
+  await tools.execute('run_command', JSON.stringify({ name: 'check' }))
+  await tools.execute('run_command', JSON.stringify({ name: 'check' }))
+  await assert.rejects(tools.execute('run_command', JSON.stringify({ name: 'check' })), (error: unknown) => {
+    assert.ok(error instanceof CandidateCommandError)
+    assert.equal(error.diagnostic.code, 'command_limit_exceeded')
+    return true
+  })
+  assert.deepEqual(commands, ['check', 'check'])
+})
+
+test('walk entry cap marks find_files and grep output as truncated', async () => {
+  const root = await mkdtemp(resolve(tmpdir(), 'ccb-tools-walkcap-'))
+  await mkdir(resolve(root, 'many'))
+  for (let index = 0; index < 5_100; index += 1) {
+    await writeFile(resolve(root, 'many', `f-${String(index).padStart(5, '0')}.txt`), `needle ${index}\n`)
+  }
+  const tools = new CandidateTools(root, async () => ({ exitCode: 0, signal: null, stdout: '', stderr: '', timedOut: false }), new Set())
+
+  const found = await tools.execute('find_files', JSON.stringify({ glob: '**/*.txt' }))
+  const foundLines = found.split('\n')
+  assert.equal(foundLines[foundLines.length - 1], '… truncated')
+  assert.ok(foundLines.length <= 5_001)
+
+  const grepped = await tools.execute('grep', JSON.stringify({ pattern: 'needle' }))
+  const grepLines = grepped.split('\n')
+  assert.equal(grepLines[grepLines.length - 1], '… results truncated')
+})

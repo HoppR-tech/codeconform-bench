@@ -905,3 +905,37 @@ test('publishes bounded approved-command diagnostics without command output', as
   assert.equal(result.execution.toolUsage[0]?.errorCount, 4)
   assert.doesNotMatch(JSON.stringify(result.execution), /secret-value|\/Users|workspace/)
 })
+
+test('fails with wall_clock_exceeded before sending any request', async () => {
+  let requests = 0
+  let clockCalls = 0
+  const agent = new OpenRouterAgent('fixture-key', {
+    id: 'fixture-model',
+    providerOrder: ['fixture-provider'],
+    allowFallbacks: false,
+    maxTokens: 1_000,
+  }, { maxSteps: 5, maxCostUsd: 30, maxTotalTokens: 10_000, maxToolOutputBytes: 1_024, wallClockSeconds: 10 }, async () => {}, () => {
+    clockCalls += 1
+    return clockCalls === 1 ? 0 : 1_000_000
+  })
+  Object.defineProperty(agent, 'client', { value: {
+    chat: {
+      send: async () => {
+        requests += 1
+        return {}
+      },
+    },
+  } })
+
+  const result = await agent.run({
+    condition: 'baseline',
+    pairId: 'pair-01',
+    workspace: '/tmp/candidate',
+    task: { id: 'fixture', prompt: 'Refactor.' },
+  }, { execute: async () => '' } as unknown as CandidateTools)
+
+  assert.equal(result.status, 'agent_error')
+  assert.equal(result.execution.failure?.code, 'wall_clock_exceeded')
+  assert.equal(result.execution.requestAttempts, 0)
+  assert.equal(requests, 0)
+})

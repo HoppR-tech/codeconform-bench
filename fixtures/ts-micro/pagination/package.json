@@ -1,0 +1,10 @@
+{
+  "name": "@ccb-fixture/ts-pagination",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Zero-dependency pagination window helper used as a stage-A bugfix fixture.",
+  "scripts": {
+    "check": "node --test"
+  }
+}

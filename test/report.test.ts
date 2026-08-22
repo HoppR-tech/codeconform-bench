@@ -9,6 +9,7 @@ function record(condition: 'baseline' | 'grace', promptTokens: number, completio
   return {
     pairId: 'pair-01',
     condition,
+    promptStyle: 'prescribed',
     status: 'scored',
     agentExecution: {
       stepsUsed: 1,
@@ -31,7 +32,7 @@ function record(condition: 'baseline' | 'grace', promptTokens: number, completio
     promptTokens,
     completionTokens,
     cost,
-    functionalGate: { passed: true, phase: 'assertion', code: 'passed', detail: null, evidence: null },
+    functionalGate: { passed: true, phase: 'assertion', code: 'passed', detail: null, evidence: null, characterization: null },
     evaluatorFailure: null,
     candidateRecovery: null,
     durationMs: 100,
@@ -62,7 +63,7 @@ test('reports per-job OpenRouter consumption and detailed paired results', () =>
   assert.match(report, /Mean code-quality delta: 60\.0%/)
   assert.match(report, /Quality-qualified pass@1 delta: 100\.0%/)
   assert.ok(report.includes(String.raw`agent\_execution\_failed: \[details\]\(https://example.invalid\) \| failed`))
-  assert.match(report, /\| pair-01 \| grace \| scored \| fixture-model \| fixture-provider \| 150 \| \$0\.200000 \| pass · assertion\/passed \| — \| yes \| 80\.0% \|/)
+  assert.match(report, /\| pair-01 \| grace \| prescribed \| scored \| fixture-model \| fixture-provider \| 150 \| \$0\.200000 \| pass · assertion\/passed \| — \| yes \| 80\.0% \|/)
   assert.match(report, /Grace MCP: https:\/\/grace\.example\/mcp/)
   assert.match(report, /### Aggregate score reconciliation/)
   assert.match(report, /\| baseline \| 20\.0% \| 20\.0% \| 20\.0% \|/)
@@ -105,6 +106,7 @@ test('marks failed runs as not evaluated and renders candidate snippets as inert
         actual: '[REDACTED] | <script>',
       }],
     },
+    characterization: { total: 3, failed: 1 },
   }
   failed.candidateRecovery = {
     schemaVersion: 1,
@@ -163,7 +165,7 @@ test('renders no-score quality and confidence data as unavailable', () => {
   const grace = record('grace', 10, 5, 0.01, 0.8)
   for (const attempt of [baseline, grace]) {
     attempt.status = 'functional_failed'
-    attempt.functionalGate = { passed: false, phase: 'assertion', code: 'assertion_mismatch', detail: 'fixture mismatch', evidence: null }
+    attempt.functionalGate = { passed: false, phase: 'assertion', code: 'assertion_mismatch', detail: 'fixture mismatch', evidence: null, characterization: null }
     attempt.codeQualityScore = null
     attempt.qualityQualified = null
     attempt.qualityDimensions = null
@@ -329,6 +331,7 @@ test('keeps six maximal failure diagnostics below the job summary limit', () => 
           actual: `"actual-${'a'.repeat(100)}"`,
         })),
       },
+      characterization: { total: 5, failed: 2 },
     }
     attempt.candidateRecovery = {
       schemaVersion: 1,

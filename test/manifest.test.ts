@@ -36,6 +36,43 @@ test('accepts a fully pinned campaign manifest', () => {
   assert.equal(parseManifest(valid).campaignId, 'ohmyform-v2')
 })
 
+test('accepts a v3 manifest with explicit stage fields', () => {
+  const manifest = parseManifest({
+    ...valid,
+    schemaVersion: 3,
+    stage: 'iteration',
+    promptStyle: 'neutral',
+    agent: { ...valid.agent, maxCommandCalls: 8, wallClockSeconds: 1800 },
+  })
+  assert.equal(manifest.schemaVersion, 3)
+  assert.equal(manifest.stage, 'iteration')
+  assert.equal(manifest.promptStyle, 'neutral')
+  assert.equal(manifest.agent.maxCommandCalls, 8)
+  assert.equal(manifest.agent.wallClockSeconds, 1800)
+})
+
+test('injects v2 defaults for stage, prompt style, and command calls', () => {
+  const manifest = parseManifest(valid)
+  assert.equal(manifest.stage, 'headline')
+  assert.equal(manifest.promptStyle, 'prescribed')
+  assert.equal(manifest.agent.maxCommandCalls, 1)
+  assert.equal(manifest.agent.wallClockSeconds, undefined)
+})
+
+test('rejects invalid v3 stage and budget fields', () => {
+  const v3 = { ...valid, schemaVersion: 3 }
+  assert.throws(() => parseManifest(v3), /stage must be iteration or headline/)
+  assert.throws(() => parseManifest({ ...v3, stage: 'iteration' }), /promptStyle must be neutral or prescribed/)
+  assert.throws(() => parseManifest({ ...v3, stage: 'iteration', promptStyle: 'neutral' }), /agent\.maxCommandCalls/)
+  for (const maxCommandCalls of [0, -1, 1.5]) {
+    assert.throws(() => parseManifest({ ...v3, stage: 'iteration', promptStyle: 'neutral', agent: { ...valid.agent, maxCommandCalls } }), /agent\.maxCommandCalls/)
+  }
+  for (const wallClockSeconds of [0, -5]) {
+    assert.throws(() => parseManifest({ ...v3, stage: 'iteration', promptStyle: 'neutral', agent: { ...valid.agent, maxCommandCalls: 4, wallClockSeconds } }), /agent\.wallClockSeconds/)
+  }
+  assert.throws(() => parseManifest({ ...valid, schemaVersion: 4 }), /schemaVersion must be 2 or 3/)
+})
+
 test('rejects mutable execution inputs', () => {
   assert.throws(() => parseManifest({ ...valid, commandExecutor: { ...valid.commandExecutor, image: 'node:22' } }), /pinned by sha256/)
   assert.throws(() => parseManifest({
@@ -70,7 +107,9 @@ test('ships exactly eleven protocol-v4 manifests with identical functional and e
   const prompts = new Set(manifests.map(({ manifest }) => manifest.task.prompt))
   assert.equal(prompts.size, 1)
   for (const { name, manifest } of manifests) {
-    assert.equal(manifest.schemaVersion, 2, name)
+    assert.equal(manifest.stage, 'headline', name)
+    assert.equal(manifest.promptStyle, 'prescribed', name)
+    assert.equal(manifest.agent.maxCommandCalls, 1, name)
     assert.equal(manifest.agent.maxSteps, 120, name)
     assert.equal(manifest.task.id, 'submission-start-code-quality-v4', name)
     assert.equal(manifest.task.prompt.includes(ARCHITECTURE_ACCEPTANCE_PARAGRAPH), true, name)

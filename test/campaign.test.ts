@@ -18,6 +18,7 @@ function outcomeRecord(pairId: string, condition: 'baseline' | 'grace', status: 
   return {
     pairId,
     condition,
+    promptStyle: 'prescribed',
     status,
     agentExecution: {
       stepsUsed: failedAgent ? 5 : 1,
@@ -43,9 +44,9 @@ function outcomeRecord(pairId: string, condition: 'baseline' | 'grace', status: 
     completionTokens: 10,
     cost: 0.01,
     functionalGate: scored || status === 'evaluator_error'
-      ? { passed: true, phase: 'assertion', code: 'passed', detail: null, evidence: null }
+      ? { passed: true, phase: 'assertion', code: 'passed', detail: null, evidence: null, characterization: null }
       : status === 'functional_failed'
-        ? { passed: false, phase: 'assertion', code: 'assertion_mismatch', detail: 'fixture mismatch', evidence: null }
+        ? { passed: false, phase: 'assertion', code: 'assertion_mismatch', detail: 'fixture mismatch', evidence: null, characterization: null }
         : null,
     evaluatorFailure: status === 'evaluator_error'
       ? { schemaVersion: 1, phase: 'internal', code: 'internal_error', reason: 'fixture evaluator failed' }
@@ -188,7 +189,7 @@ test('runs paired conditions, gates before scoring, and preserves provenance', a
     },
     runFunctionalGate: async (workspace) => {
       if (workspace.endsWith('pair-02-baseline')) await writeFile(resolve(workspace, 'candidate.txt'), 'gate mutation\n')
-      return { passed: true, phase: 'assertion', code: 'passed', detail: null, evidence: null }
+      return { passed: true, phase: 'assertion', code: 'passed', detail: null, evidence: null, characterization: null }
     },
     evaluate: async (workspace, pairId, condition) => {
       evaluated.push(`${pairId}-${condition}`)
@@ -403,8 +404,8 @@ test('captures every non-scored outcome without allowing recovery failures to re
     runFunctionalGate: async (workspace) => {
       const failed = workspace.endsWith('pair-01-grace')
       return failed
-        ? { passed: false, phase: 'assertion', code: 'assertion_mismatch', detail: 'fixture mismatch', evidence: null }
-        : { passed: true, phase: 'assertion', code: 'passed', detail: null, evidence: null }
+        ? { passed: false, phase: 'assertion', code: 'assertion_mismatch', detail: 'fixture mismatch', evidence: null, characterization: null }
+        : { passed: true, phase: 'assertion', code: 'passed', detail: null, evidence: null, characterization: null }
     },
     evaluate: async () => ({
       status: 'evaluator_error',

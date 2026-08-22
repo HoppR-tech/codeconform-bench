@@ -1,0 +1,46 @@
+id: ohmyform-anonymous-ip-fallback
+title: Characterize anonymization and missing-IP fallback on the submission-start flow
+language: typescript
+strata:
+  type: bugfix
+  difficulty: easy
+promptStyle: neutral
+statement: >-
+  The submission-start flow must behave exactly as the following input/output
+  table describes. Regular submissions keep the form, user, and device, hash
+  the token through the injected hash dependency, and never store the raw IP
+  address. When the IP address is missing, the flow stores the existing
+  missing-IP placeholder ('?'). Anonymous submissions remove the user before
+  persistence. No implementation approach is prescribed; only the observable
+  input/output behavior below is graded.
+
+  Input/output table (command fields: form, user, token, device, ipAddr):
+  - regular submission, ipAddr present -> user retained; stored IP differs
+    from the raw value.
+  - regular submission, ipAddr absent -> user retained; stored IP is '?'.
+  - anonymous submission, ipAddr present -> user removed; stored IP differs
+    from the raw value.
+  - anonymous submission, ipAddr absent -> user removed; stored IP is '?'.
+
+  Produce production-quality code: type-safe, no suppressed diagnostics, no
+  dynamic code execution or process-spawning APIs.
+approvedCommands:
+  - api-check
+budgets:
+  maxSteps: 200
+  maxCostUsd: 5
+  maxTotalTokens: 2000000
+  maxToolOutputBytes: 524288
+  maxCommandCalls: 8
+  wallClockSeconds: 1800
+target:
+  repository: https://github.com/HoppR-tech/ccb-ohmyform.git
+  commit: 0f602c646447cb8efc0ad346a2bf4869c30d2360
+  tree: 48f9f6659f2e775c3b28bc51402e785f9e42553b
+  digest: sha256:67d029e566ce918a0b4bf738b3535b8d2fc3f62e5ad6cea20040b20206d923ee
+protocolNotes: >-
+  Bugfix/characterization slice: the probe drives the public entry with a
+  table of inputs (regular/anonymous x IP present/absent) against fake
+  dependencies. The current implementation already satisfies part of the
+  table (missingIp '?' is encoded in the v2 probe); the slice hardens the
+  contract as a characterization suite.

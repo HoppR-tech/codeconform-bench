@@ -245,6 +245,7 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
             code: 'candidate_mutated',
             detail: 'functional gate mutated the candidate workspace',
             evidence: null,
+            characterization: null,
           }
         }
         if (!functionalGate.passed) {
@@ -310,6 +311,7 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
       const record: RunRecord = {
         pairId,
         condition,
+        promptStyle: manifest.promptStyle ?? 'prescribed',
         status,
         agentExecution: agent.execution,
         targetCommit: manifest.target.commit,
@@ -338,7 +340,7 @@ export async function runCampaign(manifest: CampaignManifest, ports: CampaignPor
 
   const aggregate = aggregateRecords(records, manifest.bootstrapSamples, manifest.seed)
   await writeFile(resolve(output, 'aggregate.json'), `${JSON.stringify({ campaignId: manifest.campaignId, manifestDigest, ...aggregate }, null, 2)}\n`)
-  await writeFile(resolve(output, 'report.md'), renderCampaignReport(manifest.campaignId, manifestDigest, manifest.grace.mcpUrl, records, aggregate))
+  await writeFile(resolve(output, 'report.md'), renderCampaignReport(manifest.campaignId, manifestDigest, manifest.grace.mcpUrl, records, aggregate, { stage: manifest.stage ?? 'headline', promptStyle: manifest.promptStyle ?? 'prescribed' }))
   await writeFile(resolve(output, 'summary.md'), renderCampaignSummary(manifest.campaignId, manifestDigest, records, aggregate))
   return { records, aggregate }
 }

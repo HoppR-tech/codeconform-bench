@@ -6,7 +6,11 @@ export function sha256(value: string | Buffer): string {
   return `sha256:${createHash('sha256').update(value).digest('hex')}`
 }
 
-export async function hashTree(root: string, allowSymlinks = false): Promise<string> {
+export async function hashTree(
+  root: string,
+  allowSymlinks = false,
+  prune?: (relativePath: string) => boolean,
+): Promise<string> {
   const hash = createHash('sha256')
   const directories = [root]
   const files: string[] = []
@@ -22,6 +26,7 @@ export async function hashTree(root: string, allowSymlinks = false): Promise<str
     for (const entry of entries) {
       if (entry.name === '.git') continue
       const path = resolve(directory, entry.name)
+      if (prune?.(relative(root, path))) continue
       if (entry.isSymbolicLink()) {
         if (!allowSymlinks) throw new Error('candidate artifact must not contain symbolic links')
         links.push(path)

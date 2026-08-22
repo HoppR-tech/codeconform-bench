@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 3,
+  "stage": "iteration",
+  "promptStyle": "neutral",
+  "campaignId": "stage-a-ts-field-validator-feature-gemini-3.1-flash-lite",
+  "target": {
+    "checkout": "../../.bench/targets/ts-field-validator-feature",
+    "repository": "in-repo:fixtures/ts-micro/ts-field-validator-feature",
+    "commit": "59d84e7c6c41f7a5a3b96699da378fac2908bd79",
+    "tree": "bc826aa2679fdec9e01b39362d2d3c7a09b301e7",
+    "digest": "sha256:1d665e1fcfc5e6f42ef2be6d8070a60654e7a827333c1d521fd568a3035e9ba2"
+  },
+  "task": {
+    "id": "ts-field-validator-feature",
+    "prompt": "The module validate.js exports validateProfile(fields). It receives a plain\nobject of user-supplied profile fields and returns an array of structured\nerror objects, one per violated rule, in the order the rules are listed. An\nempty array means the profile is valid; the function never throws on\nordinary bad input. Implement it so that every rule below holds:\n\n1. username — required: a non-empty string of 3-20 characters matching\n   /^[a-z0-9_]+$/. Violations:\n   { field: 'username', code: 'required' | 'format' }.\n2. email — required when fields.emailRequired is true; otherwise optional,\n   but when present it must contain exactly one '@' with non-empty local\n   part and domain. Violations:\n   { field: 'email', code: 'required' | 'format' }.\n3. age — optional; when present it must be an integer between 13 and 120.\n   Violation: { field: 'age', code: 'range' }.\n4. website — optional; when present and not an empty string it must start\n   with 'https://'. Violation: { field: 'website', code: 'format' }.\n\nExample: { username: 'Bad Name', emailRequired: true, age: 200,\nwebsite: 'ftp://x' } yields four errors, in the order username, email,\nage, website. Produce production-quality code: type-safe, no suppressed\ndiagnostics, add focused table-driven tests, and no dynamic code execution\nor process-spawning APIs."
+  },
+  "repetitions": 3,
+  "order": [
+    "baseline",
+    "grace"
+  ],
+  "model": {
+    "id": "google/gemini-3.1-flash-lite",
+    "providerOrder": [
+      "google-vertex"
+    ],
+    "allowFallbacks": false,
+    "maxTokens": 32000
+  },
+  "agent": {
+    "maxSteps": 200,
+    "maxCostUsd": 5,
+    "maxTotalTokens": 2000000,
+    "maxToolOutputBytes": 524288,
+    "maxCommandCalls": 8,
+    "wallClockSeconds": 1800
+  },
+  "commandExecutor": {
+    "image": "node@sha256:cd59a61258b82b86c1ff0ead50c8a689f6c3483c5ed21036e11ee741add419eb",
+    "commands": {
+      "check": [
+        "node",
+        "--test"
+      ]
+    },
+    "readOnlyMounts": []
+  },
+  "functionalGate": {
+    "command": [
+      "node",
+      "/opt/ccb/probe/probe.cjs"
+    ],
+    "readOnlyMounts": [],
+    "expected": {
+      "allCasesOk": true
+    }
+  },
+  "evaluator": {
+    "runner": {
+      "path": "../../.bench/evaluator/runners/typescript/evaluate.mjs",
+      "digest": "sha256:7388ec346e10e6706403a451d371f0c508bdfc99c4940614ac24928973318352"
+    },
+    "command": [
+      "node",
+      "{runner}",
+      "--candidate",
+      "{candidate}",
+      "--rule-config",
+      "{rulePack}",
+      "--result",
+      "{result}"
+    ],
+    "rulePack": {
+      "id": "ts-field-validator-feature",
+      "version": "1",
+      "digest": "sha256:3862349478b6e068b22456b6be741075292923d10cdd7776a1debc3a249caafb",
+      "path": "../tasks/stage-a/ts-field-validator-feature/rules/rule-pack.cjs"
+    }
+  },
+  "grace": {
+    "mcpUrl": "https://grace-mcp.hoppr.tech/mcp/ccb-benchmark-8169",
+    "tokenEnv": "GRACE_MCP_TOKEN"
+  },
+  "outputDirectory": "../../.bench/results/stage-a-ts-field-validator-feature-gemini-3.1-flash-lite",
+  "bootstrapSamples": 10000,
+  "seed": 20260825
+}

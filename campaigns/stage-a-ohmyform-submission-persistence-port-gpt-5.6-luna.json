@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 3,
+  "stage": "iteration",
+  "promptStyle": "neutral",
+  "campaignId": "stage-a-ohmyform-submission-persistence-port-gpt-5.6-luna",
+  "target": {
+    "checkout": "../../.bench/targets/ccb-ohmyform",
+    "repository": "https://github.com/HoppR-tech/ccb-ohmyform.git",
+    "commit": "0f602c646447cb8efc0ad346a2bf4869c30d2360",
+    "tree": "48f9f6659f2e775c3b28bc51402e785f9e42553b",
+    "digest": "sha256:67d029e566ce918a0b4bf738b3535b8d2fc3f62e5ad6cea20040b20206d923ee"
+  },
+  "task": {
+    "id": "ohmyform-submission-persistence-port",
+    "prompt": "Make the API submission-start flow depend on a persistence abstraction\ndefined on the domain/application side rather than directly on the TypeORM\nrepository, while preserving exactly the observable semantics of the flow.\nThe public GraphQL submissionStart contract, its validation, token hashing,\nanonymization, persistence, and progress-result behavior must not change.\nNo class, port, or adapter names are prescribed; any faithful structure is\nacceptable. Do not refactor unrelated submission features. Produce\nproduction-quality code: cohesive and type-safe files, no suppressed\ndiagnostics, focused tests for the new seam covering success and failure\nbehavior, and no dynamic code execution or process-spawning APIs.\n\nPreserve these observable semantics: hash the input token through the\ninjected hash dependency and store the returned hash; persist and return the\nexact submission instance passed to and returned from persistence; retain\nthe form, user, and device for regular submissions; initialize elapsed time\nand completion percentage to zero; anonymize a supplied IP address; for\nanonymous submissions remove the user and apply the existing missing-IP\nfallback."
+  },
+  "repetitions": 3,
+  "order": [
+    "baseline",
+    "grace"
+  ],
+  "model": {
+    "id": "openai/gpt-5.6-luna",
+    "providerOrder": [
+      "openai"
+    ],
+    "allowFallbacks": false,
+    "maxTokens": 32000
+  },
+  "agent": {
+    "maxSteps": 200,
+    "maxCostUsd": 5,
+    "maxTotalTokens": 2000000,
+    "maxToolOutputBytes": 524288,
+    "maxCommandCalls": 8,
+    "wallClockSeconds": 1800
+  },
+  "commandExecutor": {
+    "image": "node@sha256:cd59a61258b82b86c1ff0ead50c8a689f6c3483c5ed21036e11ee741add419eb",
+    "commands": {
+      "api-check": [
+        "yarn",
+        "--cwd",
+        "api",
+        "test",
+        "--runInBand"
+      ]
+    },
+    "readOnlyMounts": [
+      {
+        "source": "../../.bench/targets/ccb-ohmyform/api/node_modules",
+        "target": "/workspace/api/node_modules",
+        "digest": "sha256:22bbaae907d938ba5953553e9bfc62ddb8d399e24dc0e1f73e538e4120f6399b"
+      }
+    ]
+  },
+  "functionalGate": {
+    "command": [
+      "node",
+      "/opt/ccb/probe/probe.cjs"
+    ],
+    "readOnlyMounts": [
+      {
+        "source": "../tasks/stage-a/ohmyform-submission-persistence-port/probes",
+        "target": "/opt/ccb/probe",
+        "digest": "sha256:a0d0871791dc6542b73f9042c0498d6eb1d1caaa254685e90161163a301d47de"
+      }
+    ],
+    "expected": {
+      "regular": {
+        "saved": true,
+        "hashedToken": "hashed-plain-token",
+        "formRetained": true,
+        "userRetained": true,
+        "tokenHash": "hashed-plain-token",
+        "timeElapsed": 0,
+        "percentageComplete": 0,
+        "devicePreserved": true,
+        "ipAnonymized": true
+      },
+      "anonymous": {
+        "userRemoved": true,
+        "missingIp": "?"
+      }
+    }
+  },
+  "evaluator": {
+    "runner": {
+      "path": "../../.bench/evaluator/runners/typescript/evaluate.mjs",
+      "digest": "sha256:7388ec346e10e6706403a451d371f0c508bdfc99c4940614ac24928973318352"
+    },
+    "command": [
+      "node",
+      "{runner}",
+      "--candidate",
+      "{candidate}",
+      "--rule-config",
+      "{rulePack}",
+      "--result",
+      "{result}"
+    ],
+    "rulePack": {
+      "id": "ohmyform-submission-persistence-port",
+      "version": "1",
+      "digest": "sha256:2689971e4679c373faf17f5e0cfa1c87d85484a3e4993d1849ee47f4a50c8a0a",
+      "path": "../tasks/stage-a/ohmyform-submission-persistence-port/rules/rule-pack.cjs"
+    }
+  },
+  "grace": {
+    "mcpUrl": "https://grace-mcp.hoppr.tech/mcp/ccb-benchmark-8169",
+    "tokenEnv": "GRACE_MCP_TOKEN"
+  },
+  "outputDirectory": "../../.bench/results/stage-a-ohmyform-submission-persistence-port-gpt-5.6-luna",
+  "bootstrapSamples": 10000,
+  "seed": 20260821
+}

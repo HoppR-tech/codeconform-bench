@@ -1,5 +1,16 @@
 export type Condition = 'baseline' | 'grace'
 
+export type Stage = 'iteration' | 'headline'
+export type PromptStyle = 'neutral' | 'prescribed'
+
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue }
+
 export const QUALITY_DIMENSIONS = ['architecture', 'maintainability', 'clarity', 'tests', 'robustness'] as const
 export type QualityDimension = typeof QUALITY_DIMENSIONS[number]
 export type QualityDimensions = Record<QualityDimension, number>
@@ -117,7 +128,9 @@ export interface ReadOnlyMount {
 }
 
 export interface CampaignManifest {
-  schemaVersion: 2
+  schemaVersion: 2 | 3
+  stage?: Stage
+  promptStyle?: PromptStyle
   campaignId: string
   target: {
     checkout: string
@@ -145,6 +158,8 @@ export interface CampaignManifest {
     maxCostUsd: number
     maxToolOutputBytes: number
     maxTotalTokens: number
+    maxCommandCalls?: number
+    wallClockSeconds?: number
   }
   commandExecutor: {
     image: string
@@ -154,6 +169,8 @@ export interface CampaignManifest {
   functionalGate: {
     command: readonly string[]
     readOnlyMounts: readonly ReadOnlyMount[]
+    /** Expected probe payload. Absent = the protocol-v4 OhMyForm contract. */
+    expected?: JsonValue
   }
   evaluator: {
     runner: {
@@ -188,6 +205,7 @@ export type AgentFailureCode =
   | 'provider_transport_failed'
   | 'provider_response_invalid'
   | 'grace_transport_failed'
+  | 'wall_clock_exceeded'
   | 'agent_execution_failed'
 
 export interface AgentFailureDiagnostic {
@@ -282,6 +300,7 @@ export type FunctionalGateCode =
   | 'probe_payload_limits_exceeded'
   | 'assertion_mismatch'
   | 'candidate_mutated'
+  | 'characterization_mismatch'
 
 export const FUNCTIONAL_EVIDENCE_SCHEMA_VERSION = 1 as const
 
@@ -302,12 +321,18 @@ export interface FunctionalGateEvidence {
   mismatches: FunctionalMismatch[]
 }
 
+export interface CharacterizationSummary {
+  total: number
+  failed: number
+}
+
 export interface FunctionalGateResult {
   passed: boolean
   phase: FunctionalGatePhase
   code: FunctionalGateCode
   detail: string | null
   evidence: FunctionalGateEvidence | null
+  characterization: CharacterizationSummary | null
 }
 
 export const EVALUATOR_FAILURE_SCHEMA_VERSION = 1 as const
@@ -403,6 +428,7 @@ export type CandidateRecoveryReference =
 export interface RunRecord {
   pairId: string
   condition: Condition
+  promptStyle: PromptStyle
   status: 'scored' | 'functional_failed' | 'agent_error' | 'infrastructure_error' | 'evaluator_error'
   agentExecution: AgentExecutionSummary
   targetCommit: string

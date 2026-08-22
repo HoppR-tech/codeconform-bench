@@ -1,0 +1,265 @@
+name: Stage A benchmark suite
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type RUN_STAGE_A to authorize all 15 paid campaigns
+        required: true
+        type: string
+  push:
+    branches: [feat/ccb-ohmyform-docs]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeconform-stage-a
+  cancel-in-progress: false
+
+env:
+  EVALUATOR_COMMIT: b022658fedc4c1e5463efceb755a96abde0fd4fe
+  OHMYFORM_COMMIT: 0f602c646447cb8efc0ad346a2bf4869c30d2360
+  NODE_IMAGE: node@sha256:cd59a61258b82b86c1ff0ead50c8a689f6c3483c5ed21036e11ee741add419eb
+
+jobs:
+  guard-quality:
+    name: Guard · build and tests
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.confirm == 'RUN_STAGE_A') ||
+      (github.event_name == 'push' && contains(github.event.head_commit.message, '[run stage-a]'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Verify paid-run authorization
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          CONFIRM: ${{ inputs.confirm }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          case "$EVENT_NAME" in
+            workflow_dispatch)
+              test "$CONFIRM" = "RUN_STAGE_A"
+              ;;
+            push)
+              [[ "$COMMIT_MESSAGE" == *"[run stage-a]"* ]]
+              ;;
+            *)
+              exit 1
+              ;;
+          esac
+
+      - name: Check out benchmark harness
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and test harness
+        run: npm ci --ignore-scripts && npm test
+
+      - name: Publish tested harness build
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: stage-a-harness-dist-${{ github.sha }}-${{ github.run_id }}
+          path: dist
+          if-no-files-found: error
+          retention-days: 1
+
+  stage-a:
+    name: Stage A · ${{ matrix.task }} · ${{ matrix.model.short }}
+    needs: guard-quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        task:
+          - ohmyform-submission-persistence-port
+          - ohmyform-anonymous-ip-fallback
+          - ohmyform-device-metadata-capture
+          - ts-pagination-window-bugfix
+          - ts-field-validator-feature
+        model:
+          - short: gemini-3.1-flash-lite
+            id: google/gemini-3.1-flash-lite
+          - short: mistral-small-2603
+            id: mistralai/mistral-small-2603
+          - short: gpt-5.6-luna
+            id: openai/gpt-5.6-luna
+    env:
+      CAMPAIGN: campaigns/stage-a-${{ matrix.task }}-${{ matrix.model.short }}.json
+      OUTPUT: stage-a-${{ matrix.task }}-${{ matrix.model.short }}
+      EVALUATOR_SOURCE: ${{ github.workspace }}/../ccb-evaluator
+      RESULTS: ${{ github.workspace }}/../.bench/results/stage-a-${{ matrix.task }}-${{ matrix.model.short }}
+    steps:
+      - name: Check out benchmark harness
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install harness dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Download tested harness build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: stage-a-harness-dist-${{ github.sha }}-${{ github.run_id }}
+          path: dist
+
+      - name: Check out exact evaluator pin
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --branch benchmark/ohmyform-v2 --single-branch https://github.com/HoppR-tech/ccb-evaluator.git "$EVALUATOR_SOURCE"
+          git -C "$EVALUATOR_SOURCE" checkout --detach "$EVALUATOR_COMMIT"
+          test "$(git -C "$EVALUATOR_SOURCE" rev-parse HEAD)" = "$EVALUATOR_COMMIT"
+
+      - name: Materialize pinned Stage A inputs
+        run: |
+          set -euo pipefail
+          bash scripts/stage-a-bootstrap.sh
+          node scripts/stage-a-write-manifests.mjs
+          test "$(git -C ../.bench/targets/ccb-ohmyform rev-parse HEAD)" = "$OHMYFORM_COMMIT"
+
+      - name: Restore tested harness build after bootstrap
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: stage-a-harness-dist-${{ github.sha }}-${{ github.run_id }}
+          path: dist
+
+      - name: Validate generated campaign and immutable pins
+        env:
+          MATRIX_MODEL: ${{ matrix.model.id }}
+          MATRIX_TASK: ${{ matrix.task }}
+        run: |
+          node --input-type=module - "$CAMPAIGN" "$MATRIX_TASK" "$MATRIX_MODEL" "$NODE_IMAGE" "$OHMYFORM_COMMIT" <<'NODE'
+          import { readFileSync } from 'node:fs'
+
+          const [campaignPath, task, model, nodeImage, ohmyformCommit] = process.argv.slice(2)
+          const index = JSON.parse(readFileSync('campaigns/stage-a.manifests.json', 'utf8'))
+          const manifest = JSON.parse(readFileSync(campaignPath, 'utf8'))
+          const files = new Set(index.manifests.map(({ file }) => file))
+          const campaigns = new Set(index.manifests.map(({ campaignId }) => campaignId))
+
+          if (index.manifests.length !== 15 || files.size !== 15 || campaigns.size !== 15) {
+            throw new Error('Stage A manifest index must contain exactly 15 distinct campaigns')
+          }
+          if (!index.evaluatorReady || index.manifests.some(({ evaluatorReady }) => !evaluatorReady)) {
+            throw new Error('Stage A evaluator assets are not ready')
+          }
+          if (manifest.task.id !== task || manifest.model.id !== model) {
+            throw new Error('generated campaign does not match its matrix task and model')
+          }
+          if (task.startsWith('ohmyform-') && manifest.target.commit !== ohmyformCommit) {
+            throw new Error('generated campaign does not use the pinned OhMyForm commit')
+          }
+          if (manifest.commandExecutor.image !== nodeImage) {
+            throw new Error('generated campaign does not use the pinned command image')
+          }
+          NODE
+
+      - name: Require paid-run credentials
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GRACE_MCP_TOKEN: ${{ secrets.GRACE_MCP_TOKEN }}
+        run: test -n "$OPENROUTER_API_KEY" && test -n "$GRACE_MCP_TOKEN"
+
+      - name: Exercise evaluator passing and failing fixtures
+        if: startsWith(matrix.task, 'ohmyform-')
+        run: npm run preflight:evaluator -- "$CAMPAIGN" "$EVALUATOR_SOURCE/test/fixtures"
+
+      - name: Exercise evaluator against micro-task baseline
+        if: startsWith(matrix.task, 'ts-')
+        env:
+          PREFLIGHT_RESULT: ${{ runner.temp }}/stage-a-evaluator-result.json
+        run: |
+          node --input-type=module - "$CAMPAIGN" "$PREFLIGHT_RESULT" <<'NODE'
+          import { readFileSync } from 'node:fs'
+          import { spawnSync } from 'node:child_process'
+          import { loadManifest } from './dist/src/manifest.js'
+
+          const [campaignPath, resultPath] = process.argv.slice(2)
+          const manifest = await loadManifest(campaignPath)
+          const replacements = {
+            '{runner}': manifest.evaluator.runner.path,
+            '{candidate}': manifest.target.checkout,
+            '{rulePack}': manifest.evaluator.rulePack.path,
+            '{result}': resultPath,
+          }
+          const command = manifest.evaluator.command.map((argument) => (
+            Object.entries(replacements).reduce(
+              (resolved, [placeholder, value]) => resolved.replace(placeholder, value),
+              argument,
+            )
+          ))
+          const execution = spawnSync(command[0], command.slice(1), { stdio: 'inherit' })
+          if (execution.error) throw execution.error
+          if (execution.status !== 0) {
+            throw new Error(`micro-task evaluator preflight exited with status ${execution.status}`)
+          }
+
+          const result = JSON.parse(readFileSync(resultPath, 'utf8'))
+          if (result.status !== 'failing') {
+            throw new Error(`expected intentionally incomplete micro-task baseline to fail, received ${result.status}`)
+          }
+          NODE
+
+      - name: Run one Stage A campaign
+        id: campaign
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GRACE_MCP_TOKEN: ${{ secrets.GRACE_MCP_TOKEN }}
+        run: |
+          set +e
+          node dist/src/cli.js "$CAMPAIGN"
+          status=$?
+          printf 'status=%s\n' "$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Publish campaign summary
+        if: always()
+        run: |
+          if [[ -f "$RESULTS/summary.md" ]]; then
+            cat "$RESULTS/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf '## Stage A summary unavailable\n\nThe campaign stopped before producing a summary.\n' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload scoring evidence and provenance records
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ env.OUTPUT }}-${{ github.run_id }}
+          path: |
+            ${{ env.RESULTS }}/campaign-manifest.json
+            ${{ env.RESULTS }}/aggregate.json
+            ${{ env.RESULTS }}/summary.md
+            ${{ env.RESULTS }}/report.md
+            ${{ env.RESULTS }}/runs/*.json
+            ${{ env.RESULTS }}/evaluator/*.failure.json
+            ${{ env.RESULTS }}/evaluator/*.result-sanitized.json
+            ${{ env.RESULTS }}/failures/*-candidate-recovery.json
+            !${{ env.RESULTS }}/runs/*-trace.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Propagate campaign failure
+        if: always()
+        env:
+          CAMPAIGN_STATUS: ${{ steps.campaign.outputs.status }}
+        run: |
+          if [[ -n "$CAMPAIGN_STATUS" && "$CAMPAIGN_STATUS" -ne 0 ]]; then
+            exit "$CAMPAIGN_STATUS"
+          fi

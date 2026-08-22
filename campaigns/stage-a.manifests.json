@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "stage": "iteration",
+  "evaluatorReady": true,
+  "manifests": [
+    {
+      "file": "stage-a-ohmyform-submission-persistence-port-gemini-3.1-flash-lite.json",
+      "campaignId": "stage-a-ohmyform-submission-persistence-port-gemini-3.1-flash-lite",
+      "evaluatorReady": true
+    },
+    {
+      "file": "stage-a-ohmyform-submission-persistence-port-mistral-small-2603.json",
+      "campaignId": "stage-a-ohmyform-submission-persistence-port-mistral-small-2603",
+      "evaluatorReady": true
+    },
+    {
+      "file": "stage-a-ohmyform-submission-persistence-port-gpt-5.6-luna.json",
+      "campaignId": "stage-a-ohmyform-submission-persistence-port-gpt-5.6-luna",
+      "evaluatorReady": true
+    },
+    {
+      "file": "stage-a-ohmyform-anonymous-ip-fallback-gemini-3.1-flash-lite.json",
+      "campaignId": "stage-a-ohmyform-anonymous-ip-fallback-gemini-3.1-flash-lite",
+      "evaluatorReady": true
+    },
+    {
+      "file": "stage-a-ohmyform-anonymous-ip-fallback-mistral-small-2603.json",
+      "campaignId": "stage-a-ohmyform-anonymous-ip-fallback-mistral-small-2603",
+      "evaluatorReady": true
+    },
+    {
+      "file": "stage-a-ohmyform-anonymous-ip-fallback-gpt-5.6-luna.json",
+      "campaignId": "stage-a-ohmyform-anonymous-ip-fallback-gpt-5.6-luna",
+      "evaluatorReady": true
+    },
+    {
+      "file": "stage-a-ohmyform-device-metadata-capture-gemini-3.1-flash-lite.json",
+      "campaignId": "stage-a-ohmyform-device-metadata-capture-gemini-3.1-flash-lite",
+      "evaluatorReady": true
+    },
+    {
+      "file": "stage-a-ohmyform-device-metadata-capture-mistral-small-2603.json",
+      "campaignId": "stage-a-ohmyform-device-metadata-capture-mistral-small-2603",
+      "evaluatorReady": true
+    },
+    {
+      "file": "stage-a-ohmyform-device-metadata-capture-gpt-5.6-luna.json",
+      "campaignId": "stage-a-ohmyform-device-metadata-capture-gpt-5.6-luna",
+      "evaluatorReady": true
+    },
+    {
+      "file": "stage-a-ts-pagination-window-bugfix-gemini-3.1-flash-lite.json",
+      "campaignId": "stage-a-ts-pagination-window-bugfix-gemini-3.1-flash-lite",
+      "evaluatorReady": true
+    },
+    {
+      "file": "stage-a-ts-pagination-window-bugfix-mistral-small-2603.json",
+      "campaignId": "stage-a-ts-pagination-window-bugfix-mistral-small-2603",
+      "evaluatorReady": true
+    },
+    {
+      "file": "stage-a-ts-pagination-window-bugfix-gpt-5.6-luna.json",
+      "campaignId": "stage-a-ts-pagination-window-bugfix-gpt-5.6-luna",
+      "evaluatorReady": true
+    },
+    {
+      "file": "stage-a-ts-field-validator-feature-gemini-3.1-flash-lite.json",
+      "campaignId": "stage-a-ts-field-validator-feature-gemini-3.1-flash-lite",
+      "evaluatorReady": true
+    },
+    {
+      "file": "stage-a-ts-field-validator-feature-mistral-small-2603.json",
+      "campaignId": "stage-a-ts-field-validator-feature-mistral-small-2603",
+      "evaluatorReady": true
+    },
+    {
+      "file": "stage-a-ts-field-validator-feature-gpt-5.6-luna.json",
+      "campaignId": "stage-a-ts-field-validator-feature-gpt-5.6-luna",
+      "evaluatorReady": true
+    }
+  ]
+}

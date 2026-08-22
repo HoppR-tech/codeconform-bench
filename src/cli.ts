@@ -24,7 +24,7 @@ if (!manifestPath || process.argv.length !== 3) {
 
     const executor = new DockerCommandExecutor(manifest.commandExecutor)
     const targetVerifier = new GitTargetVerifier(manifest.target, manifest.commandExecutor.readOnlyMounts)
-    const functionalGate = new FunctionalGate(executor, manifest.functionalGate)
+    const functionalGate = new FunctionalGate(executor, manifest.functionalGate, manifest.functionalGate.expected)
     const agent = new OpenRouterAgent(apiKey, manifest.model, manifest.agent)
     const evaluator = new ProcessEvaluator(manifest.evaluator, manifest.outputDirectory)
     const result = await runCampaign(manifest, {
@@ -38,6 +38,7 @@ if (!manifestPath || process.argv.length !== 3) {
           input.workspace,
           (name) => executor.runNamed(input.workspace, name),
           new Set(Object.keys(manifest.commandExecutor.commands)),
+          manifest.agent.maxCommandCalls ?? 1,
         )
         if (input.condition === 'baseline') return agent.run(input, tools)
         const grace = await connectGraceMcp(manifest.grace.mcpUrl, graceToken)

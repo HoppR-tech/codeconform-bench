@@ -294,6 +294,7 @@ export function renderCampaignReport(
   graceMcpUrl: string,
   records: readonly RunRecord[],
   aggregate: CampaignAggregate,
+  meta?: { stage: string; promptStyle: string },
 ): string {
   const promptTokens = aggregate.baseline.promptTokens + aggregate.grace.promptTokens
   const completionTokens = aggregate.baseline.completionTokens + aggregate.grace.completionTokens
@@ -305,6 +306,7 @@ export function renderCampaignReport(
     `# Benchmark report — ${cell(campaignId)}`,
     '',
     `- Manifest: \`${cell(manifestDigest)}\``,
+    ...(meta === undefined ? [] : [`- Stage: ${cell(meta.stage)} · Prompt style: ${cell(meta.promptStyle)}`]),
     `- Grace MCP: ${cell(graceMcpUrl)}`,
     '',
     '## Code quality results',
@@ -357,17 +359,15 @@ export function renderCampaignReport(
     '| ---: | ---: | ---: | ---: |',
     `| ${promptTokens} | ${completionTokens} | ${promptTokens + completionTokens} | ${cost(totalCost)} |`,
     '',
-    '## Run details',
-    '',
-    '| Pair | Condition | Status | Model | Provider | Tokens | Cost | Functional diagnostic | Evaluator diagnostic | Quality-qualified | Code quality | Architecture | Maintainability | Clarity | Tests | Robustness | Violations | Duration ms | Agent diagnostic |',
-    '| --- | --- | --- | --- | --- | ---: | ---: | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |',
+    '| Pair | Condition | Prompt style | Status | Model | Provider | Tokens | Cost | Functional diagnostic | Evaluator diagnostic | Quality-qualified | Code quality | Architecture | Maintainability | Clarity | Tests | Robustness | Violations | Duration ms | Agent diagnostic |',
+    '| --- | --- | --- | --- | --- | ---: | ---: | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |',
     ...records.map((record) => {
       const dimensions = record.qualityDimensions
       const gate = record.functionalGate
       const gateText = gate === null ? '—' : `${gate.passed ? 'pass' : 'fail'} · ${gate.phase}/${gate.code}${gate.detail ? ` · ${boundedSummaryText(gate.detail, 120)}` : ''}`
       const diagnostic = record.evaluatorFailure
       const evaluatorText = diagnostic === null ? '—' : `${diagnostic.phase}/${diagnostic.code}${diagnostic.schemaPath ? ` · ${diagnostic.schemaPath}` : ''} · ${boundedSummaryText(diagnostic.reason, 120)}`
-      return `| ${cell(record.pairId)} | ${record.condition} | ${record.status} | ${cell(record.model)} | ${cell(record.provider)} | ${record.promptTokens + record.completionTokens} | ${cost(record.cost)} | ${cell(gateText)} | ${cell(evaluatorText)} | ${record.qualityQualified === null ? '—' : record.qualityQualified ? 'yes' : 'no'} | ${percentage(record.codeQualityScore)} | ${percentage(dimensions?.architecture ?? null)} | ${percentage(dimensions?.maintainability ?? null)} | ${percentage(dimensions?.clarity ?? null)} | ${percentage(dimensions?.tests ?? null)} | ${percentage(dimensions?.robustness ?? null)} | ${value(record.violations)} | ${record.durationMs} | ${cell(agentDiagnostic(record))} |`
+      return `| ${cell(record.pairId)} | ${record.condition} | ${cell(record.promptStyle)} | ${record.status} | ${cell(record.model)} | ${cell(record.provider)} | ${record.promptTokens + record.completionTokens} | ${cost(record.cost)} | ${cell(gateText)} | ${cell(evaluatorText)} | ${record.qualityQualified === null ? '—' : record.qualityQualified ? 'yes' : 'no'} | ${percentage(record.codeQualityScore)} | ${percentage(dimensions?.architecture ?? null)} | ${percentage(dimensions?.maintainability ?? null)} | ${percentage(dimensions?.clarity ?? null)} | ${percentage(dimensions?.tests ?? null)} | ${percentage(dimensions?.robustness ?? null)} | ${value(record.violations)} | ${record.durationMs} | ${cell(agentDiagnostic(record))} |`
     }),
     '',
     '## Raw scoring evidence',

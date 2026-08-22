@@ -1,0 +1,47 @@
+id: ohmyform-device-metadata-capture
+title: Capture device language, name, and type on the started submission
+language: typescript
+strata:
+  type: feature
+  difficulty: easy
+promptStyle: neutral
+statement: >-
+  When a submission is started, capture the visitor's device metadata — the
+  language, name, and type supplied with the request — onto the persisted
+  submission, so that analytics can later group submissions by device. The
+  storage shape and property names are up to you; the values must be
+  retrievable from the submission instance returned by and passed to
+  persistence. Everything else about the flow must keep its current behavior.
+  Produce production-quality code: type-safe, no suppressed diagnostics, no
+  dynamic code execution or process-spawning APIs.
+approvedCommands:
+  - api-check
+budgets:
+  maxSteps: 200
+  maxCostUsd: 5
+  maxTotalTokens: 2000000
+  maxToolOutputBytes: 524288
+  maxCommandCalls: 8
+  wallClockSeconds: 1800
+target:
+  repository: https://github.com/HoppR-tech/ccb-ohmyform.git
+  commit: 0f602c646447cb8efc0ad346a2bf4869c30d2360
+  tree: 48f9f6659f2e775c3b28bc51402e785f9e42553b
+  digest: sha256:67d029e566ce918a0b4bf738b3535b8d2fc3f62e5ad6cea20040b20206d923ee
+protocolNotes: >-
+  CONFIRMED (bootstrap follow-up, checked out at commit
+  0f602c646447cb8efc0ad346a2bf4869c30d2360): the submission-start flow already
+  captures device language/name/type. Evidence: DeviceEmbedded
+  (api/src/entity/embedded/device.embedded.ts) declares nullable columns
+  language, type, and name; SubmissionEntity embeds it via
+  @Column(() => DeviceEmbedded) public device (api/src/entity/submission.entity.ts:44-45);
+  SubmissionStartInput carries a required DeviceInput with type, name, and
+  nullable language (api/src/dto/submission/device.input.ts,
+  api/src/dto/submission/submission.start.input.ts:9-10); and
+  SubmissionStartService.start copies input.device.language/name/type onto
+  submission.device before save (api/src/service/submission/submission.start.service.ts:41-43).
+  Note: the fields live on the persisted submission, not on FormEntity as the
+  original plan guessed. The task contract ("values must be retrievable from
+  the submission instance returned by and passed to persistence") targets the
+  existing capture path, so the generic value-searching probe needs no change;
+  no alternative contract was switched to.

@@ -1,0 +1,10 @@
+{
+  "name": "@ccb-fixture/ts-field-validation",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Zero-dependency profile field validation used as a stage-A greenfield feature fixture.",
+  "scripts": {
+    "check": "node --test"
+  }
+}
