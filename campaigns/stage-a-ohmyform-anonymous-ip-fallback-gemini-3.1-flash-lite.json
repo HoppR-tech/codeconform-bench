@@ -63,7 +63,7 @@
       {
         "source": "../tasks/stage-a/ohmyform-anonymous-ip-fallback/probes",
         "target": "/opt/ccb/probe",
-        "digest": "sha256:9de4d3d811b6ac2cf89f3a05a2eda20cf6e07dd6bb07e47cdbdf07a39c8f091f"
+        "digest": "sha256:9bb0c7c4d2ab553b6d4a3146bef539fe0c3984f042912a2db98c987902131751"
       }
     ],
     "expected": {

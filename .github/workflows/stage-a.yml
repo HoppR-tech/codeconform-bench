@@ -4,9 +4,18 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: Type RUN_STAGE_A to authorize all 15 paid campaigns
+        description: Type RUN_STAGE_A to authorize the selected paid campaigns
         required: true
         type: string
+      scope:
+        description: Stage A campaign scope
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - ohmyform
+          - micro
   push:
     branches: [feat/ccb-ohmyform-docs]
 
@@ -27,27 +36,45 @@ jobs:
     name: Guard · build and tests
     if: >-
       (github.event_name == 'workflow_dispatch' && inputs.confirm == 'RUN_STAGE_A') ||
-      (github.event_name == 'push' && contains(github.event.head_commit.message, '[run stage-a]'))
+      (github.event_name == 'push' && (
+        contains(github.event.head_commit.message, '[run stage-a]') ||
+        contains(github.event.head_commit.message, '[run stage-a-ohmyform]') ||
+        contains(github.event.head_commit.message, '[run stage-a-micro]')
+      ))
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - name: Verify paid-run authorization
+        id: authorize
         env:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
           CONFIRM: ${{ inputs.confirm }}
           EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_SCOPE: ${{ inputs.scope }}
         run: |
           case "$EVENT_NAME" in
             workflow_dispatch)
               test "$CONFIRM" = "RUN_STAGE_A"
+              scope="$DISPATCH_SCOPE"
               ;;
             push)
-              [[ "$COMMIT_MESSAGE" == *"[run stage-a]"* ]]
+              if [[ "$COMMIT_MESSAGE" == *"[run stage-a-ohmyform]"* ]]; then
+                scope=ohmyform
+              elif [[ "$COMMIT_MESSAGE" == *"[run stage-a-micro]"* ]]; then
+                scope=micro
+              elif [[ "$COMMIT_MESSAGE" == *"[run stage-a]"* ]]; then
+                scope=all
+              else
+                exit 1
+              fi
               ;;
             *)
               exit 1
               ;;
           esac
+          printf 'scope=%s\n' "$scope" >> "$GITHUB_OUTPUT"
 
       - name: Check out benchmark harness
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -71,6 +98,51 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+      - name: Select requested Stage A matrix
+        id: matrix
+        env:
+          SCOPE: ${{ steps.authorize.outputs.scope }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync, readFileSync } from 'node:fs'
+
+          const index = JSON.parse(readFileSync('campaigns/stage-a.manifests.json', 'utf8'))
+          const expectedModels = new Set([
+            'google/gemini-3.1-flash-lite',
+            'mistralai/mistral-small-2603',
+            'openai/gpt-5.6-luna',
+          ])
+          const all = index.manifests.map(({ file }) => {
+            const manifest = JSON.parse(readFileSync(`campaigns/${file}`, 'utf8'))
+            const task = manifest.task.id
+            return {
+              task,
+              model: {
+                id: manifest.model.id,
+                short: manifest.campaignId.slice(`stage-a-${task}-`.length),
+              },
+            }
+          })
+          const include = all.filter(({ task }) => (
+            process.env.SCOPE === 'all' ||
+            (process.env.SCOPE === 'ohmyform' && task.startsWith('ohmyform-')) ||
+            (process.env.SCOPE === 'micro' && task.startsWith('ts-'))
+          ))
+          const expectedCount = { all: 15, ohmyform: 9, micro: 6 }[process.env.SCOPE]
+          const models = new Set(all.map(({ model }) => model.id))
+          const campaigns = new Set(all.map(({ task, model }) => `${task}:${model.id}`))
+          if (
+            include.length !== expectedCount ||
+            all.length !== 15 ||
+            campaigns.size !== 15 ||
+            models.size !== expectedModels.size ||
+            [...models].some((model) => !expectedModels.has(model))
+          ) {
+            throw new Error(`invalid Stage A ${process.env.SCOPE} matrix`)
+          }
+          appendFileSync(process.env.GITHUB_OUTPUT, `matrix=${JSON.stringify({ include })}\n`)
+          NODE
+
   stage-a:
     name: Stage A · ${{ matrix.task }} · ${{ matrix.model.short }}
     needs: guard-quality
@@ -79,20 +151,7 @@ jobs:
     strategy:
       fail-fast: false
       max-parallel: 3
-      matrix:
-        task:
-          - ohmyform-submission-persistence-port
-          - ohmyform-anonymous-ip-fallback
-          - ohmyform-device-metadata-capture
-          - ts-pagination-window-bugfix
-          - ts-field-validator-feature
-        model:
-          - short: gemini-3.1-flash-lite
-            id: google/gemini-3.1-flash-lite
-          - short: mistral-small-2603
-            id: mistralai/mistral-small-2603
-          - short: gpt-5.6-luna
-            id: openai/gpt-5.6-luna
+      matrix: ${{ fromJSON(needs.guard-quality.outputs.matrix) }}
     env:
       CAMPAIGN: campaigns/stage-a-${{ matrix.task }}-${{ matrix.model.short }}.json
       OUTPUT: stage-a-${{ matrix.task }}-${{ matrix.model.short }}

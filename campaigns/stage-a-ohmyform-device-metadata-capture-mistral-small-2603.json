@@ -63,7 +63,7 @@
       {
         "source": "../tasks/stage-a/ohmyform-device-metadata-capture/probes",
         "target": "/opt/ccb/probe",
-        "digest": "sha256:5adf12d20d852664c9735a05afd612f5e28253fc0a66cac355f71e4f7223f598"
+        "digest": "sha256:226d7973d41c8d294964d73ac27f56c0d130faff93d70ec810163f4c88004648"
       }
     ],
     "expected": {

@@ -63,7 +63,7 @@
       {
         "source": "../tasks/stage-a/ohmyform-submission-persistence-port/probes",
         "target": "/opt/ccb/probe",
-        "digest": "sha256:a0d0871791dc6542b73f9042c0498d6eb1d1caaa254685e90161163a301d47de"
+        "digest": "sha256:e7b29f6bcd63bc18c673dcf11308cb4724bcb6d3551bc51817d9fe1123af17c1"
       }
     ],
     "expected": {

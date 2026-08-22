@@ -4,9 +4,11 @@ This document covers the operator launch path for the stage-A benchmark suite.
 
 ## CI launch
 
-The preferred reusable path is **GitHub Actions → Stage A benchmark suite → Run workflow**. Enter `RUN_STAGE_A` in the required `confirm` field. As a one-time fallback in this environment, a push to `feat/ccb-ohmyform-docs` launches the suite only when the commit message contains the exact marker `[run stage-a]`; unmarked pushes skip every job.
+The preferred reusable path is **GitHub Actions → Stage A benchmark suite → Run workflow**. Enter `RUN_STAGE_A` in the required `confirm` field and choose `all` (default, 15 campaigns), `ohmyform` (9 campaigns), or `micro` (6 campaigns) from `scope`.
 
-The workflow runs all 15 campaigns (5 tasks × 3 models) with at most 3 campaigns in parallel. It first gates execution on the harness quality/build job, then bootstraps and preflights the evaluator, checks the required credentials, and starts the paid campaigns. Result artifacts are retained for 30 days; run traces are explicitly excluded.
+As a one-time fallback in this environment, a push to `feat/ccb-ohmyform-docs` selects the same scopes with an exact commit marker: `[run stage-a]` for all campaigns, `[run stage-a-ohmyform]` for only OhMyForm, or `[run stage-a-micro]` for only the TypeScript micro tasks. Unmarked pushes skip every job.
+
+The workflow runs the selected 5 × 3 campaign matrix subset with at most 3 campaigns in parallel. It first gates execution on the harness quality/build job, then bootstraps and preflights the evaluator, checks the required credentials, and starts the paid campaigns. Result artifacts are retained for 30 days; run traces are explicitly excluded.
 
 Configure these repository or organization Actions secrets before launch:
 

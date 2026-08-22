@@ -10,6 +10,7 @@ import { createHash } from 'node:crypto'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseManifest } from '../dist/src/manifest.js'
+import { hashTree } from '../dist/src/digest.js'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const bench = resolve(root, '..', '.bench')
@@ -101,6 +102,7 @@ for (const task of tasks) {
   const rulePackPath = resolve(root, 'tasks/stage-a', task.id, 'rules/rule-pack.cjs')
   if (!existsSync(rulePackPath)) throw new Error(`missing rule pack for ${task.id}`)
   const rulePackDigest = `sha256:${createHash('sha256').update(readFileSync(rulePackPath)).digest('hex')}`
+  const probeMountDigest = await hashTree(resolve(root, 'tasks/stage-a', task.id, 'probes'), true)
   for (const model of models) {
     const target = task.ohmyform
       ? { ...ohmyformTarget, checkout: '../../.bench/targets/ccb-ohmyform' }
@@ -162,7 +164,7 @@ for (const task of tasks) {
           ? [{
             source: `../tasks/stage-a/${task.id}/probes`,
             target: '/opt/ccb/probe',
-            digest: probeDigest(task.id),
+            digest: probeMountDigest,
           }]
           : [],
         ...(task.expected === undefined ? {} : { expected: task.expected }),
@@ -214,10 +216,4 @@ function readStatement(taskId) {
     .join('\n')
     .trim()
   return body
-}
-
-function probeDigest(taskId) {
-  const probePath = resolve(root, 'tasks/stage-a', taskId, 'probes/probe.cjs')
-  if (!existsSync(probePath)) throw new Error(`missing probe for ${taskId}`)
-  return `sha256:${createHash('sha256').update(readFileSync(probePath)).digest('hex')}`
 }
