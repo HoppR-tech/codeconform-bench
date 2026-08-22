@@ -222,9 +222,10 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GRACE_MCP_TOKEN: ${{ secrets.GRACE_MCP_TOKEN }}
         run: |
+          mkdir -p "$RUNNER_TEMP/stage-a-logs"
           set +e
-          node dist/src/cli.js "$CAMPAIGN"
-          status=$?
+          node dist/src/cli.js "$CAMPAIGN" 2>&1 | tee "$RUNNER_TEMP/stage-a-logs/$OUTPUT.log"
+          status=${PIPESTATUS[0]}
           printf 'status=%s\n' "$status" >> "$GITHUB_OUTPUT"
           exit 0
 
@@ -232,9 +233,21 @@ jobs:
         if: always()
         run: |
           if [[ -f "$RESULTS/summary.md" ]]; then
-            cat "$RESULTS/summary.md" >> "$GITHUB_STEP_SUMMARY"
+            tee -a "$GITHUB_STEP_SUMMARY" < "$RESULTS/summary.md"
           else
-            printf '## Stage A summary unavailable\n\nThe campaign stopped before producing a summary.\n' >> "$GITHUB_STEP_SUMMARY"
+            printf '## Stage A summary unavailable\n\nThe campaign stopped before producing a summary.\n' | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Stage campaign artifacts inside workspace
+        if: always()
+        run: |
+          rm -rf ".ci-results/$OUTPUT"
+          mkdir -p ".ci-results/$OUTPUT"
+          if [[ -d "$RESULTS" ]]; then
+            cp -R "$RESULTS/." ".ci-results/$OUTPUT/"
+          fi
+          if [[ -f "$RUNNER_TEMP/stage-a-logs/$OUTPUT.log" ]]; then
+            cp "$RUNNER_TEMP/stage-a-logs/$OUTPUT.log" ".ci-results/$OUTPUT/campaign.log"
           fi
 
       - name: Upload scoring evidence and provenance records
@@ -243,15 +256,16 @@ jobs:
         with:
           name: ${{ env.OUTPUT }}-${{ github.run_id }}
           path: |
-            ${{ env.RESULTS }}/campaign-manifest.json
-            ${{ env.RESULTS }}/aggregate.json
-            ${{ env.RESULTS }}/summary.md
-            ${{ env.RESULTS }}/report.md
-            ${{ env.RESULTS }}/runs/*.json
-            ${{ env.RESULTS }}/evaluator/*.failure.json
-            ${{ env.RESULTS }}/evaluator/*.result-sanitized.json
-            ${{ env.RESULTS }}/failures/*-candidate-recovery.json
-            !${{ env.RESULTS }}/runs/*-trace.json
+            .ci-results/${{ env.OUTPUT }}/campaign-manifest.json
+            .ci-results/${{ env.OUTPUT }}/aggregate.json
+            .ci-results/${{ env.OUTPUT }}/summary.md
+            .ci-results/${{ env.OUTPUT }}/report.md
+            .ci-results/${{ env.OUTPUT }}/campaign.log
+            .ci-results/${{ env.OUTPUT }}/runs/*.json
+            .ci-results/${{ env.OUTPUT }}/evaluator/*.failure.json
+            .ci-results/${{ env.OUTPUT }}/evaluator/*.result-sanitized.json
+            .ci-results/${{ env.OUTPUT }}/failures/*-candidate-recovery.json
+            !.ci-results/${{ env.OUTPUT }}/runs/*-trace.json
           if-no-files-found: warn
           retention-days: 30
 
