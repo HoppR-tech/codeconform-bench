@@ -336,3 +336,76 @@ jobs:
           if [[ -n "$CAMPAIGN_STATUS" && "$CAMPAIGN_STATUS" -ne 0 ]]; then
             exit "$CAMPAIGN_STATUS"
           fi
+
+  analyze-results:
+    name: Analyze · published Stage A artifacts
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[analyze stage-a]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Check out benchmark harness
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build analyzer
+        run: npm ci --ignore-scripts && npm run build
+
+      - name: Download micro campaign artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: stage-a-ts-*
+          path: .stage-a-evidence/micro
+          merge-multiple: false
+          repository: ${{ github.repository }}
+          run-id: 32584530089
+          github-token: ${{ github.token }}
+
+      - name: Download OhMyForm campaign artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: stage-a-ohmyform-*
+          path: .stage-a-evidence/ohmyform
+          merge-multiple: false
+          repository: ${{ github.repository }}
+          run-id: 32585135534
+          github-token: ${{ github.token }}
+
+      - name: Analyze Stage A evidence
+        run: |
+          node scripts/stage-a-analyze-results.mjs \
+            .stage-a-evidence/micro \
+            .stage-a-evidence/ohmyform \
+            reports/stage-a-2026-08-22.md \
+            reports/stage-a-2026-08-22.json
+          cat reports/stage-a-2026-08-22.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish consolidated report
+        run: |
+          git add -- reports/stage-a-2026-08-22.md reports/stage-a-2026-08-22.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git -c user.name=github-actions -c user.email=github-actions@github.com \
+            commit -m "docs: publish Stage A CI results [skip ci]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Upload consolidated report fallback
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: stage-a-consolidated-report-${{ github.run_id }}
+          path: |
+            reports/stage-a-2026-08-22.md
+            reports/stage-a-2026-08-22.json
+          if-no-files-found: warn
+          retention-days: 30
