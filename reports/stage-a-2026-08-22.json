@@ -1,0 +1,1130 @@
+{
+  "schemaVersion": 1,
+  "campaigns": [
+    {
+      "task": "ohmyform-anonymous-ip-fallback",
+      "model": "google/gemini-3.1-flash-lite",
+      "campaignId": "stage-a-ohmyform-anonymous-ip-fallback-gemini-3.1-flash-lite",
+      "files": {
+        "manifest": true,
+        "aggregate": true,
+        "summary": true,
+        "campaignLog": true,
+        "runRecords": 6,
+        "missing": []
+      },
+      "runRecords": {
+        "attempts": 6,
+        "statuses": {
+          "scored": 0,
+          "functional_failed": 6,
+          "agent_error": 0,
+          "infrastructure_error": 0,
+          "evaluator_error": 0
+        },
+        "byCondition": {
+          "baseline": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          },
+          "grace": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          }
+        }
+      },
+      "aggregate": {
+        "baseline": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 415880,
+          "completionTokens": 3328,
+          "totalTokens": 419208,
+          "cost": 0.043693325000000005,
+          "durationMeanMs": 39967.333333333336
+        },
+        "grace": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 2629151,
+          "completionTokens": 7530,
+          "totalTokens": 2636681,
+          "cost": 0.192891125,
+          "durationMeanMs": 62505.666666666664
+        },
+        "paired": {
+          "functionalAttempts": 3,
+          "qualityAttempts": 0,
+          "functionalPassAt1Delta": 0,
+          "qualityPassAt1Delta": null,
+          "codeQualityDeltaMean": null,
+          "qualityGainPerAdditional1000TokensMean": null
+        }
+      },
+      "cli": {
+        "outcome": "completed",
+        "reason": null,
+        "excerpt": null
+      },
+      "summary": "# Benchmark summary — stage-a-ohmyform-anonymous-ip-fallback-gemini-3.1-flash-lite\n\n- Manifest: `sha256:dbc29a60572f33d4b0f54661119e1c5deb8b7a377da38d75519327da7e333c95`\n- Full check/source/graph report: `report.md` in the workflow artifact\n- Canonical replay evidence: `runs/pair-*.json` in the workflow artifact\n- Bounded evaluator diagnostics and sanitized candidate recovery artifacts: `evaluator/` and `failures/`\n\n| Condition | Attempts | Scored attempts | Valid quality attempts | Functional pass@1 | Quality-qualified pass@1 | Code quality |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: |\n| baseline | 3 | 0 | 0 | 0.0% | — | — |\n| grace | 3 | 0 | 0 | 0.0% | — | — |\n\n- Functional pass@1 delta: 0.0%\n- Quality-qualified pass@1 delta: —\n- Mean code-quality delta: —\n- Tokens: 3055889 (3045031 prompt + 10858 completion)\n- OpenRouter cost: $0.236584\n\n## Attempt index\n\n| Pair | Condition | Status | Code quality | Violations | Canonical evidence |\n| --- | --- | --- | ---: | ---: | --- |\n| pair-01 | baseline | functional_failed | — | — | unavailable |\n| pair-01 | grace | functional_failed | — | — | unavailable |\n| pair-02 | grace | functional_failed | — | — | unavailable |\n| pair-02 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | grace | functional_failed | — | — | unavailable |\n\n## Compact raw scoring evidence\n\nEvery accepted check row is shown. Snippets and graph/path projections are display-bounded; canonical per-run JSON remains complete.\n\n### pair-01 · baseline · functional_failed\n\n- Agent execution: 13/200 steps; 13 requests; 12 tool calls.\n- Tool usage: edit×2/0 errors, list\\_files×2/0 errors, read\\_file×7/0 errors, run\\_command×1/1 errors.\n- Recent tool activity (3/8 retained in summary): 10:read\\_file/ok, 11:edit/ok, 12:read\\_file/ok.\n- Approved command diagnostics (1 retained): 8:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-01 · grace · functional_failed\n\n- Agent execution: 33/200 steps; 33 requests; 32 tool calls.\n- Tool usage: edit×1/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_doctor×1/0 errors, grace\\_install\\_talents×1/0 errors, grace\\_prepare\\_task×2/0 errors, grace\\_record\\_validation×4/0 errors, grace\\_validate×6/0 errors, list\\_files×5/0 errors, read\\_file×9/0 errors, run\\_command×2/2 errors.\n- Recent tool activity (3/8 retained in summary): 30:list\\_files/ok, 31:grace\\_record\\_validation/ok, 32:grace\\_record\\_validation/ok.\n- Approved command diagnostics (2 retained): 4:—/command_not_approved, 25:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · grace · functional_failed\n\n- Agent execution: 30/200 steps; 30 requests; 29 tool calls.\n- Tool usage: edit×1/0 errors, find\\_files×1/0 errors, grace\\_deepen×2/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_doctor×2/0 errors, grace\\_install\\_talents×1/0 errors, grace\\_prepare\\_task×2/0 errors, grace\\_record\\_validation×4/0 errors, grace\\_validate×4/0 errors, list\\_files×2/0 errors, read\\_file×7/0 errors, run\\_command×2/2 errors.\n- Recent tool activity (3/8 retained in summary): 27:grace\\_deepen/ok, 28:grace\\_record\\_validation/ok, 29:grace\\_validate/ok.\n- Approved command diagnostics (2 retained): 12:—/command_not_approved, 15:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · baseline · functional_failed\n\n- Agent execution: 14/200 steps; 14 requests; 13 tool calls.\n- Tool usage: edit×4/0 errors, list\\_files×2/0 errors, read\\_file×5/0 errors, run\\_command×2/2 errors.\n- Recent tool activity (3/8 retained in summary): 11:edit/ok, 12:edit/ok, 13:run\\_command/execution_error.\n- Approved command diagnostics (2 retained): 7:—/command_not_approved, 13:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · baseline · functional_failed\n\n- Agent execution: 14/200 steps; 14 requests; 13 tool calls.\n- Tool usage: edit×4/0 errors, list\\_files×2/0 errors, read\\_file×6/0 errors, run\\_command×1/1 errors.\n- Recent tool activity (3/8 retained in summary): 11:edit/ok, 12:edit/ok, 13:read\\_file/ok.\n- Approved command diagnostics (1 retained): 8:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · grace · functional_failed\n\n- Agent execution: 18/200 steps; 18 requests; 17 tool calls.\n- Tool usage: edit×2/0 errors, find\\_files×1/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_install\\_talents×1/0 errors, grace\\_prepare\\_task×2/0 errors, grace\\_record\\_validation×4/0 errors, grace\\_validate×2/0 errors, list\\_files×1/0 errors, read\\_file×2/0 errors, run\\_command×1/1 errors.\n- Recent tool activity (3/8 retained in summary): 15:grace\\_record\\_validation/ok, 16:grace\\_record\\_validation/ok, 17:grace\\_record\\_validation/ok.\n- Approved command diagnostics (1 retained): 5:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`)."
+    },
+    {
+      "task": "ohmyform-anonymous-ip-fallback",
+      "model": "mistralai/mistral-small-2603",
+      "campaignId": "stage-a-ohmyform-anonymous-ip-fallback-mistral-small-2603",
+      "files": {
+        "manifest": true,
+        "aggregate": true,
+        "summary": true,
+        "campaignLog": true,
+        "runRecords": 6,
+        "missing": []
+      },
+      "runRecords": {
+        "attempts": 6,
+        "statuses": {
+          "scored": 0,
+          "functional_failed": 6,
+          "agent_error": 0,
+          "infrastructure_error": 0,
+          "evaluator_error": 0
+        },
+        "byCondition": {
+          "baseline": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          },
+          "grace": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          }
+        }
+      },
+      "aggregate": {
+        "baseline": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 1453020,
+          "completionTokens": 14109,
+          "totalTokens": 1467129,
+          "cost": 0.04531968,
+          "durationMeanMs": 70143
+        },
+        "grace": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 2000458,
+          "completionTokens": 7112,
+          "totalTokens": 2007570,
+          "cost": 0.06561702,
+          "durationMeanMs": 52923.333333333336
+        },
+        "paired": {
+          "functionalAttempts": 3,
+          "qualityAttempts": 0,
+          "functionalPassAt1Delta": 0,
+          "qualityPassAt1Delta": null,
+          "codeQualityDeltaMean": null,
+          "qualityGainPerAdditional1000TokensMean": null
+        }
+      },
+      "cli": {
+        "outcome": "completed",
+        "reason": null,
+        "excerpt": null
+      },
+      "summary": "# Benchmark summary — stage-a-ohmyform-anonymous-ip-fallback-mistral-small-2603\n\n- Manifest: `sha256:b0afecdf57cf24f23ed2555705e6ccffd5aa8cfda49a5496eb5e4b13407c0333`\n- Full check/source/graph report: `report.md` in the workflow artifact\n- Canonical replay evidence: `runs/pair-*.json` in the workflow artifact\n- Bounded evaluator diagnostics and sanitized candidate recovery artifacts: `evaluator/` and `failures/`\n\n| Condition | Attempts | Scored attempts | Valid quality attempts | Functional pass@1 | Quality-qualified pass@1 | Code quality |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: |\n| baseline | 3 | 0 | 0 | 0.0% | — | — |\n| grace | 3 | 0 | 0 | 0.0% | — | — |\n\n- Functional pass@1 delta: 0.0%\n- Quality-qualified pass@1 delta: —\n- Mean code-quality delta: —\n- Tokens: 3474699 (3453478 prompt + 21221 completion)\n- OpenRouter cost: $0.110937\n\n## Attempt index\n\n| Pair | Condition | Status | Code quality | Violations | Canonical evidence |\n| --- | --- | --- | ---: | ---: | --- |\n| pair-01 | baseline | functional_failed | — | — | unavailable |\n| pair-01 | grace | functional_failed | — | — | unavailable |\n| pair-02 | grace | functional_failed | — | — | unavailable |\n| pair-02 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | grace | functional_failed | — | — | unavailable |\n\n## Compact raw scoring evidence\n\nEvery accepted check row is shown. Snippets and graph/path projections are display-bounded; canonical per-run JSON remains complete.\n\n### pair-01 · baseline · functional_failed\n\n- Agent execution: 43/200 steps; 43 requests; 42 tool calls.\n- Tool usage: edit×5/0 errors, find\\_files×2/0 errors, grep×7/0 errors, list\\_files×3/0 errors, read\\_file×17/0 errors, run\\_command×4/4 errors, write\\_file×4/0 errors.\n- Recent tool activity (3/8 retained in summary): 40:write\\_file/ok, 41:find\\_files/ok, 42:write\\_file/ok.\n- Approved command diagnostics (4 retained): 23:—/command_not_approved, 24:—/command_not_approved, 25:—/command_not_approved, 30:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-01 · grace · functional_failed\n\n- Agent execution: 25/200 steps; 25 requests; 26 tool calls.\n- Tool usage: grace\\_discover\\_codebase×2/0 errors, grace\\_doctor×1/0 errors, grace\\_install\\_talents×5/0 errors, grace\\_prepare\\_task×3/0 errors, grace\\_validate×2/0 errors, list\\_files×1/0 errors, read\\_file×8/0 errors, run\\_command×4/4 errors.\n- Recent tool activity (3/8 retained in summary): 22:grace\\_validate/ok, 23:grace\\_validate/ok, 24:read\\_file/ok.\n- Approved command diagnostics (4 retained): 9:—/command_not_approved, 10:—/command_not_approved, 11:—/command_not_approved, 12:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · grace · functional_failed\n\n- Agent execution: 16/200 steps; 16 requests; 18 tool calls.\n- Tool usage: edit×1/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_prepare\\_task×3/0 errors, grace\\_record\\_validation×1/0 errors, grace\\_validate×1/0 errors, list\\_files×1/0 errors, read\\_file×8/0 errors, run\\_command×2/2 errors.\n- Recent tool activity (3/8 retained in summary): 13:read\\_file/ok, 14:grace\\_validate/ok, 15:grace\\_record\\_validation/ok.\n- Approved command diagnostics (2 retained): 10:—/command_not_approved, 11:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · baseline · functional_failed\n\n- Agent execution: 29/200 steps; 29 requests; 28 tool calls.\n- Tool usage: edit×1/0 errors, grep×4/0 errors, list\\_files×2/0 errors, read\\_file×16/0 errors, run\\_command×3/3 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 26:grep/ok, 27:read\\_file/ok, 28:write\\_file/ok.\n- Approved command diagnostics (3 retained): 11:—/command_not_approved, 15:—/command_not_approved, 16:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · baseline · functional_failed\n\n- Agent execution: 30/200 steps; 30 requests; 30 tool calls.\n- Tool usage: find\\_files×2/0 errors, grep×3/0 errors, list\\_files×5/2 errors, read\\_file×14/0 errors, run\\_command×5/5 errors, write\\_file×1/0 errors.\n- Recent tool activity (3/8 retained in summary): 27:read\\_file/ok, 28:read\\_file/ok, 29:write\\_file/ok.\n- Approved command diagnostics (4 retained; truncated): 11:—/command_not_approved, 12:—/command_not_approved, 15:—/command_not_approved, 16:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · grace · functional_failed\n\n- Agent execution: 25/200 steps; 25 requests; 24 tool calls.\n- Tool usage: grace\\_discover\\_codebase×2/0 errors, grace\\_prepare\\_task×3/0 errors, grace\\_validate×1/0 errors, grep×3/0 errors, list\\_files×1/0 errors, read\\_file×11/0 errors, run\\_command×2/2 errors, write\\_file×1/0 errors.\n- Recent tool activity (3/8 retained in summary): 22:read\\_file/ok, 23:grace\\_validate/ok, 24:write\\_file/ok.\n- Approved command diagnostics (2 retained): 17:—/command_not_approved, 18:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`)."
+    },
+    {
+      "task": "ohmyform-anonymous-ip-fallback",
+      "model": "openai/gpt-5.6-luna",
+      "campaignId": "stage-a-ohmyform-anonymous-ip-fallback-gpt-5.6-luna",
+      "files": {
+        "manifest": true,
+        "aggregate": true,
+        "summary": true,
+        "campaignLog": true,
+        "runRecords": 6,
+        "missing": []
+      },
+      "runRecords": {
+        "attempts": 6,
+        "statuses": {
+          "scored": 0,
+          "functional_failed": 3,
+          "agent_error": 0,
+          "infrastructure_error": 3,
+          "evaluator_error": 0
+        },
+        "byCondition": {
+          "baseline": {
+            "scored": 0,
+            "functional_failed": 2,
+            "agent_error": 0,
+            "infrastructure_error": 1,
+            "evaluator_error": 0
+          },
+          "grace": {
+            "scored": 0,
+            "functional_failed": 1,
+            "agent_error": 0,
+            "infrastructure_error": 2,
+            "evaluator_error": 0
+          }
+        }
+      },
+      "aggregate": {
+        "baseline": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 176134,
+          "completionTokens": 5264,
+          "totalTokens": 181398,
+          "cost": 0.015359850000000001,
+          "durationMeanMs": 136114.33333333334
+        },
+        "grace": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 95207,
+          "completionTokens": 1492,
+          "totalTokens": 96699,
+          "cost": 0.01006433,
+          "durationMeanMs": 59760
+        },
+        "paired": {
+          "functionalAttempts": 1,
+          "qualityAttempts": 0,
+          "functionalPassAt1Delta": 0,
+          "qualityPassAt1Delta": null,
+          "codeQualityDeltaMean": null,
+          "qualityGainPerAdditional1000TokensMean": null
+        }
+      },
+      "cli": {
+        "outcome": "failed",
+        "reason": "campaign incomplete: 3 infrastructure error(s)",
+        "excerpt": "campaign incomplete: 3 infrastructure error(s)"
+      },
+      "summary": "# Benchmark summary — stage-a-ohmyform-anonymous-ip-fallback-gpt-5.6-luna\n\n- Manifest: `sha256:b24c2d9b3b9f469aac21ec8b2f0f153134708393a618b77bb09b14cee85f20bd`\n- Full check/source/graph report: `report.md` in the workflow artifact\n- Canonical replay evidence: `runs/pair-*.json` in the workflow artifact\n- Bounded evaluator diagnostics and sanitized candidate recovery artifacts: `evaluator/` and `failures/`\n\n| Condition | Attempts | Scored attempts | Valid quality attempts | Functional pass@1 | Quality-qualified pass@1 | Code quality |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: |\n| baseline | 3 | 0 | 0 | 0.0% | — | — |\n| grace | 3 | 0 | 0 | 0.0% | — | — |\n\n- Functional pass@1 delta: 0.0%\n- Quality-qualified pass@1 delta: —\n- Mean code-quality delta: —\n- Tokens: 278097 (271341 prompt + 6756 completion)\n- OpenRouter cost: $0.025424\n\n## Attempt index\n\n| Pair | Condition | Status | Code quality | Violations | Canonical evidence |\n| --- | --- | --- | ---: | ---: | --- |\n| pair-01 | baseline | infrastructure_error | — | — | unavailable |\n| pair-01 | grace | infrastructure_error | — | — | unavailable |\n| pair-02 | grace | functional_failed | — | — | unavailable |\n| pair-02 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | grace | infrastructure_error | — | — | unavailable |\n\n## Compact raw scoring evidence\n\nEvery accepted check row is shown. Snippets and graph/path projections are display-bounded; canonical per-run JSON remains complete.\n\n### pair-01 · baseline · infrastructure_error\n\n- Agent execution: 2/200 steps; 4 requests; 1 tool calls; `provider_transport_failed` — Rate limit exceeded: new-account-rpm/openai/gpt-5.6-luna-20260709. Rate limit reached: new accounts are limited to 10 requests per minute for this model. Please retry shortly..\n- Tool usage: list\\_files×1/0 errors.\n- Recent tool activity (1/1 retained in summary): 1:list\\_files/ok.\n- Approved command diagnostics (0 retained): none.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `infrastructure_error`).\n\n### pair-01 · grace · infrastructure_error\n\n- Agent execution: 1/200 steps; 2 requests; 0 tool calls; `provider_transport_failed` — Rate limit exceeded: new-account-rpm/openai/gpt-5.6-luna-20260709. Rate limit reached: new accounts are limited to 10 requests per minute for this model. Please retry shortly..\n- Tool usage: none.\n- Recent tool activity (0/0 retained in summary): none.\n- Approved command diagnostics (0 retained): none.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `infrastructure_error`).\n\n### pair-02 · grace · functional_failed\n\n- Agent execution: 6/200 steps; 6 requests; 15 tool calls.\n- Tool usage: find\\_files×3/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_prepare\\_task×1/0 errors, list\\_files×1/0 errors, read\\_file×9/0 errors.\n- Recent tool activity (3/8 retained in summary): 5:read\\_file/ok, 5:read\\_file/ok, 5:read\\_file/ok.\n- Approved command diagnostics (0 retained): none.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · baseline · functional_failed\n\n- Agent execution: 10/200 steps; 12 requests; 20 tool calls.\n- Tool usage: edit×2/0 errors, grep×2/0 errors, list\\_files×1/0 errors, read\\_file×13/1 errors, run\\_command×2/2 errors.\n- Recent tool activity (3/8 retained in summary): 7:edit/ok, 8:edit/ok, 9:read\\_file/execution_error.\n- Approved command diagnostics (2 retained): 4:—/command_not_approved, 5:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · baseline · functional_failed\n\n- Agent execution: 8/200 steps; 9 requests; 18 tool calls.\n- Tool usage: edit×1/0 errors, grep×2/0 errors, list\\_files×1/0 errors, read\\_file×11/0 errors, run\\_command×3/3 errors.\n- Recent tool activity (3/8 retained in summary): 6:run\\_command/execution_error, 6:run\\_command/execution_error, 7:run\\_command/execution_error.\n- Approved command diagnostics (3 retained): 6:—/command_not_approved, 6:—/command_not_approved, 7:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · grace · infrastructure_error\n\n- Agent execution: 1/200 steps; 2 requests; 0 tool calls; `provider_transport_failed` — Rate limit exceeded: new-account-rpm/openai/gpt-5.6-luna-20260709. Rate limit reached: new accounts are limited to 10 requests per minute for this model. Please retry shortly..\n- Tool usage: none.\n- Recent tool activity (0/0 retained in summary): none.\n- Approved command diagnostics (0 retained): none.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `infrastructure_error`)."
+    },
+    {
+      "task": "ohmyform-device-metadata-capture",
+      "model": "google/gemini-3.1-flash-lite",
+      "campaignId": "stage-a-ohmyform-device-metadata-capture-gemini-3.1-flash-lite",
+      "files": {
+        "manifest": true,
+        "aggregate": true,
+        "summary": true,
+        "campaignLog": true,
+        "runRecords": 6,
+        "missing": []
+      },
+      "runRecords": {
+        "attempts": 6,
+        "statuses": {
+          "scored": 0,
+          "functional_failed": 5,
+          "agent_error": 1,
+          "infrastructure_error": 0,
+          "evaluator_error": 0
+        },
+        "byCondition": {
+          "baseline": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          },
+          "grace": {
+            "scored": 0,
+            "functional_failed": 2,
+            "agent_error": 1,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          }
+        }
+      },
+      "aggregate": {
+        "baseline": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 1604543,
+          "completionTokens": 4134,
+          "totalTokens": 1608677,
+          "cost": 0.103612175,
+          "durationMeanMs": 59563.666666666664
+        },
+        "grace": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 3441000,
+          "completionTokens": 6042,
+          "totalTokens": 3447042,
+          "cost": 0.193023075,
+          "durationMeanMs": 61645.333333333336
+        },
+        "paired": {
+          "functionalAttempts": 3,
+          "qualityAttempts": 0,
+          "functionalPassAt1Delta": 0,
+          "qualityPassAt1Delta": null,
+          "codeQualityDeltaMean": null,
+          "qualityGainPerAdditional1000TokensMean": null
+        }
+      },
+      "cli": {
+        "outcome": "completed",
+        "reason": null,
+        "excerpt": null
+      },
+      "summary": "# Benchmark summary — stage-a-ohmyform-device-metadata-capture-gemini-3.1-flash-lite\n\n- Manifest: `sha256:fe61aa08723734d051e70606c9c7d44a57915ed9fe97c8dd1c92791ee46df724`\n- Full check/source/graph report: `report.md` in the workflow artifact\n- Canonical replay evidence: `runs/pair-*.json` in the workflow artifact\n- Bounded evaluator diagnostics and sanitized candidate recovery artifacts: `evaluator/` and `failures/`\n\n| Condition | Attempts | Scored attempts | Valid quality attempts | Functional pass@1 | Quality-qualified pass@1 | Code quality |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: |\n| baseline | 3 | 0 | 0 | 0.0% | — | — |\n| grace | 3 | 0 | 0 | 0.0% | — | — |\n\n- Functional pass@1 delta: 0.0%\n- Quality-qualified pass@1 delta: —\n- Mean code-quality delta: —\n- Tokens: 5055719 (5045543 prompt + 10176 completion)\n- OpenRouter cost: $0.296635\n\n## Attempt index\n\n| Pair | Condition | Status | Code quality | Violations | Canonical evidence |\n| --- | --- | --- | ---: | ---: | --- |\n| pair-01 | baseline | functional_failed | — | — | unavailable |\n| pair-01 | grace | functional_failed | — | — | unavailable |\n| pair-02 | grace | functional_failed | — | — | unavailable |\n| pair-02 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | grace | agent_error | — | — | unavailable |\n\n## Compact raw scoring evidence\n\nEvery accepted check row is shown. Snippets and graph/path projections are display-bounded; canonical per-run JSON remains complete.\n\n### pair-01 · baseline · functional_failed\n\n- Agent execution: 19/200 steps; 19 requests; 18 tool calls.\n- Tool usage: edit×4/0 errors, list\\_files×2/0 errors, read\\_file×11/0 errors, run\\_command×1/1 errors.\n- Recent tool activity (3/8 retained in summary): 16:read\\_file/ok, 17:edit/ok, 18:read\\_file/ok.\n- Approved command diagnostics (1 retained): 8:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-01 · grace · functional_failed\n\n- Agent execution: 29/200 steps; 29 requests; 28 tool calls.\n- Tool usage: edit×1/0 errors, find\\_files×2/0 errors, grace\\_deepen×4/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_install\\_talents×2/0 errors, grace\\_prepare\\_task×2/0 errors, grace\\_record\\_validation×4/0 errors, grace\\_validate×3/0 errors, list\\_files×2/0 errors, read\\_file×6/0 errors, run\\_command×1/1 errors.\n- Recent tool activity (3/8 retained in summary): 26:grace\\_record\\_validation/ok, 27:grace\\_record\\_validation/ok, 28:grace\\_record\\_validation/ok.\n- Approved command diagnostics (1 retained): 12:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · grace · functional_failed\n\n- Agent execution: 32/200 steps; 32 requests; 31 tool calls.\n- Tool usage: edit×1/0 errors, grace\\_deepen×3/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_install\\_talents×2/0 errors, grace\\_prepare\\_task×2/0 errors, grace\\_record\\_validation×2/0 errors, grace\\_validate×3/0 errors, grep×2/0 errors, list\\_files×2/0 errors, read\\_file×11/0 errors, run\\_command×2/2 errors.\n- Recent tool activity (3/8 retained in summary): 29:grace\\_validate/ok, 30:grace\\_record\\_validation/ok, 31:grace\\_record\\_validation/ok.\n- Approved command diagnostics (2 retained): 4:—/command_not_approved, 15:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · baseline · functional_failed\n\n- Agent execution: 82/200 steps; 82 requests; 81 tool calls.\n- Tool usage: list\\_files×2/0 errors, read\\_file×6/0 errors, run\\_command×73/73 errors.\n- Recent tool activity (3/8 retained in summary): 79:run\\_command/execution_error, 80:run\\_command/execution_error, 81:run\\_command/execution_error.\n- Approved command diagnostics (4 retained; truncated): 8:—/command_not_approved, 10:—/command_not_approved, 11:—/command_not_approved, 12:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · baseline · functional_failed\n\n- Agent execution: 23/200 steps; 23 requests; 22 tool calls.\n- Tool usage: edit×2/0 errors, grep×1/0 errors, list\\_files×4/1 errors, read\\_file×10/0 errors, run\\_command×5/5 errors.\n- Recent tool activity (3/8 retained in summary): 20:run\\_command/execution_error, 21:run\\_command/execution_error, 22:run\\_command/execution_error.\n- Approved command diagnostics (4 retained; truncated): 7:—/command_not_approved, 13:—/command_not_approved, 20:—/command_not_approved, 21:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · grace · agent_error\n\n- Agent execution: 54/200 steps; 54 requests; 54 tool calls; `token_budget_exhausted` — agent token budget exhausted before request.\n- Tool usage: edit×2/0 errors, grace\\_deepen×3/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_install\\_talents×2/0 errors, grace\\_prepare\\_task×2/0 errors, grace\\_validate×5/0 errors, grep×4/0 errors, list\\_files×4/1 errors, read\\_file×12/0 errors, run\\_command×19/19 errors.\n- Recent tool activity (3/8 retained in summary): 52:run\\_command/execution_error, 53:run\\_command/execution_error, 54:run\\_command/execution_error.\n- Approved command diagnostics (4 retained; truncated): 18:—/command_not_approved, 37:—/command_not_approved, 38:—/command_not_approved, 39:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `agent_error`)."
+    },
+    {
+      "task": "ohmyform-device-metadata-capture",
+      "model": "mistralai/mistral-small-2603",
+      "campaignId": "stage-a-ohmyform-device-metadata-capture-mistral-small-2603",
+      "files": {
+        "manifest": true,
+        "aggregate": true,
+        "summary": true,
+        "campaignLog": true,
+        "runRecords": 6,
+        "missing": []
+      },
+      "runRecords": {
+        "attempts": 6,
+        "statuses": {
+          "scored": 0,
+          "functional_failed": 6,
+          "agent_error": 0,
+          "infrastructure_error": 0,
+          "evaluator_error": 0
+        },
+        "byCondition": {
+          "baseline": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          },
+          "grace": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          }
+        }
+      },
+      "aggregate": {
+        "baseline": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 2471312,
+          "completionTokens": 17485,
+          "totalTokens": 2488797,
+          "cost": 0.05775588000000001,
+          "durationMeanMs": 93655.33333333333
+        },
+        "grace": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 3233992,
+          "completionTokens": 16104,
+          "totalTokens": 3250096,
+          "cost": 0.08060496,
+          "durationMeanMs": 87165.33333333333
+        },
+        "paired": {
+          "functionalAttempts": 3,
+          "qualityAttempts": 0,
+          "functionalPassAt1Delta": 0,
+          "qualityPassAt1Delta": null,
+          "codeQualityDeltaMean": null,
+          "qualityGainPerAdditional1000TokensMean": null
+        }
+      },
+      "cli": {
+        "outcome": "completed",
+        "reason": null,
+        "excerpt": null
+      },
+      "summary": "# Benchmark summary — stage-a-ohmyform-device-metadata-capture-mistral-small-2603\n\n- Manifest: `sha256:fe137ce57bd16c69c3c268d83e32df6b89577e7c4594fcf189c78b2c22248ef4`\n- Full check/source/graph report: `report.md` in the workflow artifact\n- Canonical replay evidence: `runs/pair-*.json` in the workflow artifact\n- Bounded evaluator diagnostics and sanitized candidate recovery artifacts: `evaluator/` and `failures/`\n\n| Condition | Attempts | Scored attempts | Valid quality attempts | Functional pass@1 | Quality-qualified pass@1 | Code quality |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: |\n| baseline | 3 | 0 | 0 | 0.0% | — | — |\n| grace | 3 | 0 | 0 | 0.0% | — | — |\n\n- Functional pass@1 delta: 0.0%\n- Quality-qualified pass@1 delta: —\n- Mean code-quality delta: —\n- Tokens: 5738893 (5705304 prompt + 33589 completion)\n- OpenRouter cost: $0.138361\n\n## Attempt index\n\n| Pair | Condition | Status | Code quality | Violations | Canonical evidence |\n| --- | --- | --- | ---: | ---: | --- |\n| pair-01 | baseline | functional_failed | — | — | unavailable |\n| pair-01 | grace | functional_failed | — | — | unavailable |\n| pair-02 | grace | functional_failed | — | — | unavailable |\n| pair-02 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | grace | functional_failed | — | — | unavailable |\n\n## Compact raw scoring evidence\n\nEvery accepted check row is shown. Snippets and graph/path projections are display-bounded; canonical per-run JSON remains complete.\n\n### pair-01 · baseline · functional_failed\n\n- Agent execution: 53/200 steps; 53 requests; 56 tool calls.\n- Tool usage: edit×2/0 errors, find\\_files×2/0 errors, grep×17/1 errors, list\\_files×4/0 errors, read\\_file×27/0 errors, run\\_command×4/4 errors.\n- Recent tool activity (3/8 retained in summary): 50:grep/ok, 51:grep/ok, 52:list\\_files/ok.\n- Approved command diagnostics (4 retained): 22:—/command_not_approved, 23:—/command_not_approved, 24:—/command_not_approved, 38:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-01 · grace · functional_failed\n\n- Agent execution: 28/200 steps; 28 requests; 35 tool calls.\n- Tool usage: find\\_files×1/0 errors, grace\\_discover\\_codebase×7/0 errors, grace\\_prepare\\_task×1/0 errors, grep×6/1 errors, list\\_files×2/0 errors, read\\_file×18/1 errors.\n- Recent tool activity (3/8 retained in summary): 25:grace\\_discover\\_codebase/ok, 26:grace\\_discover\\_codebase/ok, 27:grace\\_discover\\_codebase/ok.\n- Approved command diagnostics (0 retained): none.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · grace · functional_failed\n\n- Agent execution: 35/200 steps; 35 requests; 39 tool calls.\n- Tool usage: edit×6/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_prepare\\_task×2/0 errors, grep×4/0 errors, list\\_files×5/1 errors, read\\_file×17/0 errors, run\\_command×2/2 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 32:list\\_files/ok, 33:list\\_files/ok, 34:grep/ok.\n- Approved command diagnostics (2 retained): 20:—/command_not_approved, 21:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · baseline · functional_failed\n\n- Agent execution: 48/200 steps; 48 requests; 50 tool calls.\n- Tool usage: edit×5/0 errors, find\\_files×2/0 errors, grep×4/0 errors, list\\_files×4/0 errors, read\\_file×30/1 errors, run\\_command×4/4 errors, write\\_file×1/0 errors.\n- Recent tool activity (3/8 retained in summary): 45:edit/ok, 46:read\\_file/ok, 47:list\\_files/ok.\n- Approved command diagnostics (4 retained): 31:—/command_not_approved, 32:—/command_not_approved, 33:—/command_not_approved, 35:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · baseline · functional_failed\n\n- Agent execution: 57/200 steps; 57 requests; 61 tool calls.\n- Tool usage: edit×4/0 errors, grep×16/0 errors, list\\_files×3/0 errors, read\\_file×35/0 errors, run\\_command×3/3 errors.\n- Recent tool activity (3/8 retained in summary): 54:read\\_file/ok, 55:read\\_file/ok, 56:list\\_files/ok.\n- Approved command diagnostics (3 retained): 33:—/command_not_approved, 34:—/command_not_approved, 36:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · grace · functional_failed\n\n- Agent execution: 47/200 steps; 47 requests; 50 tool calls.\n- Tool usage: edit×4/0 errors, find\\_files×2/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_prepare\\_task×2/0 errors, grace\\_validate×1/0 errors, grep×7/0 errors, list\\_files×3/1 errors, read\\_file×21/0 errors, run\\_command×6/6 errors, write\\_file×3/0 errors.\n- Recent tool activity (3/8 retained in summary): 44:write\\_file/ok, 45:run\\_command/execution_error, 46:read\\_file/ok.\n- Approved command diagnostics (4 retained; truncated): 21:—/command_not_approved, 22:—/command_not_approved, 23:—/command_not_approved, 25:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`)."
+    },
+    {
+      "task": "ohmyform-device-metadata-capture",
+      "model": "openai/gpt-5.6-luna",
+      "campaignId": "stage-a-ohmyform-device-metadata-capture-gpt-5.6-luna",
+      "files": {
+        "manifest": true,
+        "aggregate": true,
+        "summary": true,
+        "campaignLog": true,
+        "runRecords": 6,
+        "missing": []
+      },
+      "runRecords": {
+        "attempts": 6,
+        "statuses": {
+          "scored": 0,
+          "functional_failed": 6,
+          "agent_error": 0,
+          "infrastructure_error": 0,
+          "evaluator_error": 0
+        },
+        "byCondition": {
+          "baseline": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          },
+          "grace": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          }
+        }
+      },
+      "aggregate": {
+        "baseline": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 694336,
+          "completionTokens": 9841,
+          "totalTokens": 704177,
+          "cost": 0.03821798,
+          "durationMeanMs": 128731
+        },
+        "grace": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 1240503,
+          "completionTokens": 11881,
+          "totalTokens": 1252384,
+          "cost": 0.0627191,
+          "durationMeanMs": 138926
+        },
+        "paired": {
+          "functionalAttempts": 3,
+          "qualityAttempts": 0,
+          "functionalPassAt1Delta": 0,
+          "qualityPassAt1Delta": null,
+          "codeQualityDeltaMean": null,
+          "qualityGainPerAdditional1000TokensMean": null
+        }
+      },
+      "cli": {
+        "outcome": "completed",
+        "reason": null,
+        "excerpt": null
+      },
+      "summary": "# Benchmark summary — stage-a-ohmyform-device-metadata-capture-gpt-5.6-luna\n\n- Manifest: `sha256:d958f5aaba00338994f9b988dd318d365071b8feca2bb67c09c2e2317c482402`\n- Full check/source/graph report: `report.md` in the workflow artifact\n- Canonical replay evidence: `runs/pair-*.json` in the workflow artifact\n- Bounded evaluator diagnostics and sanitized candidate recovery artifacts: `evaluator/` and `failures/`\n\n| Condition | Attempts | Scored attempts | Valid quality attempts | Functional pass@1 | Quality-qualified pass@1 | Code quality |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: |\n| baseline | 3 | 0 | 0 | 0.0% | — | — |\n| grace | 3 | 0 | 0 | 0.0% | — | — |\n\n- Functional pass@1 delta: 0.0%\n- Quality-qualified pass@1 delta: —\n- Mean code-quality delta: —\n- Tokens: 1956561 (1934839 prompt + 21722 completion)\n- OpenRouter cost: $0.100937\n\n## Attempt index\n\n| Pair | Condition | Status | Code quality | Violations | Canonical evidence |\n| --- | --- | --- | ---: | ---: | --- |\n| pair-01 | baseline | functional_failed | — | — | unavailable |\n| pair-01 | grace | functional_failed | — | — | unavailable |\n| pair-02 | grace | functional_failed | — | — | unavailable |\n| pair-02 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | grace | functional_failed | — | — | unavailable |\n\n## Compact raw scoring evidence\n\nEvery accepted check row is shown. Snippets and graph/path projections are display-bounded; canonical per-run JSON remains complete.\n\n### pair-01 · baseline · functional_failed\n\n- Agent execution: 13/200 steps; 13 requests; 31 tool calls.\n- Tool usage: edit×2/0 errors, grep×4/0 errors, list\\_files×1/0 errors, read\\_file×21/0 errors, run\\_command×3/3 errors.\n- Recent tool activity (3/8 retained in summary): 10:edit/ok, 11:run\\_command/execution_error, 12:read\\_file/ok.\n- Approved command diagnostics (3 retained): 7:—/command_not_approved, 8:—/command_not_approved, 11:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-01 · grace · functional_failed\n\n- Agent execution: 19/200 steps; 20 requests; 43 tool calls.\n- Tool usage: edit×3/0 errors, find\\_files×1/0 errors, grace\\_deepen×3/0 errors, grace\\_prepare\\_task×1/0 errors, grace\\_record\\_validation×1/0 errors, grace\\_validate×5/0 errors, grep×2/0 errors, list\\_files×1/0 errors, read\\_file×22/0 errors, run\\_command×4/4 errors.\n- Recent tool activity (3/8 retained in summary): 18:read\\_file/ok, 18:read\\_file/ok, 18:read\\_file/ok.\n- Approved command diagnostics (4 retained): 10:—/command_not_approved, 10:—/command_not_approved, 12:—/command_not_approved, 12:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · grace · functional_failed\n\n- Agent execution: 16/200 steps; 17 requests; 42 tool calls.\n- Tool usage: edit×1/0 errors, grace\\_deepen×2/0 errors, grace\\_prepare\\_task×1/0 errors, grace\\_validate×7/0 errors, grep×4/0 errors, list\\_files×1/0 errors, read\\_file×22/0 errors, run\\_command×4/4 errors.\n- Recent tool activity (3/8 retained in summary): 13:read\\_file/ok, 14:read\\_file/ok, 15:run\\_command/execution_error.\n- Approved command diagnostics (4 retained): 7:—/command_not_approved, 8:—/command_not_approved, 12:—/command_not_approved, 15:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · baseline · functional_failed\n\n- Agent execution: 19/200 steps; 21 requests; 34 tool calls.\n- Tool usage: edit×4/0 errors, grep×6/0 errors, list\\_files×1/0 errors, read\\_file×21/0 errors, run\\_command×2/2 errors.\n- Recent tool activity (3/8 retained in summary): 16:read\\_file/ok, 17:edit/ok, 18:read\\_file/ok.\n- Approved command diagnostics (2 retained): 11:—/command_not_approved, 12:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · baseline · functional_failed\n\n- Agent execution: 17/200 steps; 18 requests; 34 tool calls.\n- Tool usage: edit×2/0 errors, grep×6/0 errors, list\\_files×1/0 errors, read\\_file×21/0 errors, run\\_command×4/4 errors.\n- Recent tool activity (3/8 retained in summary): 16:read\\_file/ok, 16:read\\_file/ok, 16:read\\_file/ok.\n- Approved command diagnostics (4 retained): 10:—/command_not_approved, 11:—/command_not_approved, 12:—/command_not_approved, 15:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · grace · functional_failed\n\n- Agent execution: 16/200 steps; 17 requests; 36 tool calls.\n- Tool usage: edit×2/0 errors, find\\_files×1/0 errors, grace\\_deepen×2/0 errors, grace\\_prepare\\_task×1/0 errors, grace\\_record\\_validation×1/0 errors, grace\\_validate×4/0 errors, grep×5/0 errors, read\\_file×18/0 errors, run\\_command×2/2 errors.\n- Recent tool activity (3/8 retained in summary): 14:grace\\_record\\_validation/ok, 15:read\\_file/ok, 15:read\\_file/ok.\n- Approved command diagnostics (2 retained): 10:—/command_not_approved, 11:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`)."
+    },
+    {
+      "task": "ohmyform-submission-persistence-port",
+      "model": "google/gemini-3.1-flash-lite",
+      "campaignId": "stage-a-ohmyform-submission-persistence-port-gemini-3.1-flash-lite",
+      "files": {
+        "manifest": true,
+        "aggregate": true,
+        "summary": true,
+        "campaignLog": true,
+        "runRecords": 6,
+        "missing": []
+      },
+      "runRecords": {
+        "attempts": 6,
+        "statuses": {
+          "scored": 0,
+          "functional_failed": 6,
+          "agent_error": 0,
+          "infrastructure_error": 0,
+          "evaluator_error": 0
+        },
+        "byCondition": {
+          "baseline": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          },
+          "grace": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          }
+        }
+      },
+      "aggregate": {
+        "baseline": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 366931,
+          "completionTokens": 9898,
+          "totalTokens": 376829,
+          "cost": 0.060119500000000006,
+          "durationMeanMs": 44500.333333333336
+        },
+        "grace": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 2236429,
+          "completionTokens": 16916,
+          "totalTokens": 2253345,
+          "cost": 0.19693045,
+          "durationMeanMs": 64283.666666666664
+        },
+        "paired": {
+          "functionalAttempts": 3,
+          "qualityAttempts": 0,
+          "functionalPassAt1Delta": 0,
+          "qualityPassAt1Delta": null,
+          "codeQualityDeltaMean": null,
+          "qualityGainPerAdditional1000TokensMean": null
+        }
+      },
+      "cli": {
+        "outcome": "completed",
+        "reason": null,
+        "excerpt": null
+      },
+      "summary": "# Benchmark summary — stage-a-ohmyform-submission-persistence-port-gemini-3.1-flash-lite\n\n- Manifest: `sha256:645f35e7bd6a2b4b01638805051dd5839d7a07cc19a9d159639bfaa0255941aa`\n- Full check/source/graph report: `report.md` in the workflow artifact\n- Canonical replay evidence: `runs/pair-*.json` in the workflow artifact\n- Bounded evaluator diagnostics and sanitized candidate recovery artifacts: `evaluator/` and `failures/`\n\n| Condition | Attempts | Scored attempts | Valid quality attempts | Functional pass@1 | Quality-qualified pass@1 | Code quality |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: |\n| baseline | 3 | 0 | 0 | 0.0% | — | — |\n| grace | 3 | 0 | 0 | 0.0% | — | — |\n\n- Functional pass@1 delta: 0.0%\n- Quality-qualified pass@1 delta: —\n- Mean code-quality delta: —\n- Tokens: 2630174 (2603360 prompt + 26814 completion)\n- OpenRouter cost: $0.257050\n\n## Attempt index\n\n| Pair | Condition | Status | Code quality | Violations | Canonical evidence |\n| --- | --- | --- | ---: | ---: | --- |\n| pair-01 | baseline | functional_failed | — | — | unavailable |\n| pair-01 | grace | functional_failed | — | — | unavailable |\n| pair-02 | grace | functional_failed | — | — | unavailable |\n| pair-02 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | grace | functional_failed | — | — | unavailable |\n\n## Compact raw scoring evidence\n\nEvery accepted check row is shown. Snippets and graph/path projections are display-bounded; canonical per-run JSON remains complete.\n\n### pair-01 · baseline · functional_failed\n\n- Agent execution: 20/200 steps; 20 requests; 19 tool calls.\n- Tool usage: edit×3/0 errors, find\\_files×4/0 errors, grep×1/0 errors, list\\_files×1/0 errors, read\\_file×7/0 errors, run\\_command×1/1 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 17:read\\_file/ok, 18:edit/ok, 19:run\\_command/execution_error.\n- Approved command diagnostics (1 retained): 19:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-01 · grace · functional_failed\n\n- Agent execution: 27/200 steps; 27 requests; 26 tool calls.\n- Tool usage: edit×3/0 errors, find\\_files×1/0 errors, grace\\_doctor×1/0 errors, grace\\_prepare\\_task×1/0 errors, grace\\_record\\_validation×6/0 errors, grace\\_validate×2/0 errors, list\\_files×3/0 errors, read\\_file×7/0 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 24:grace\\_record\\_validation/ok, 25:grace\\_record\\_validation/ok, 26:grace\\_record\\_validation/ok.\n- Approved command diagnostics (0 retained): none.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · grace · functional_failed\n\n- Agent execution: 44/200 steps; 44 requests; 43 tool calls.\n- Tool usage: edit×9/1 errors, grace\\_doctor×1/0 errors, grace\\_prepare\\_task×1/0 errors, grace\\_record\\_validation×10/0 errors, grace\\_validate×4/0 errors, grep×1/0 errors, list\\_files×5/1 errors, read\\_file×11/0 errors, write\\_file×1/0 errors.\n- Recent tool activity (3/8 retained in summary): 41:grace\\_record\\_validation/ok, 42:grace\\_record\\_validation/ok, 43:grace\\_record\\_validation/ok.\n- Approved command diagnostics (0 retained): none.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · baseline · functional_failed\n\n- Agent execution: 28/200 steps; 28 requests; 27 tool calls.\n- Tool usage: edit×3/0 errors, find\\_files×4/0 errors, read\\_file×9/0 errors, run\\_command×9/9 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 25:run\\_command/execution_error, 26:run\\_command/execution_error, 27:run\\_command/execution_error.\n- Approved command diagnostics (4 retained; truncated): 15:—/command_not_approved, 20:—/command_not_approved, 21:—/command_not_approved, 22:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · baseline · functional_failed\n\n- Agent execution: 14/200 steps; 14 requests; 13 tool calls.\n- Tool usage: edit×3/0 errors, find\\_files×1/0 errors, list\\_files×1/0 errors, read\\_file×6/0 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 11:edit/ok, 12:read\\_file/ok, 13:edit/ok.\n- Approved command diagnostics (0 retained): none.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · grace · functional_failed\n\n- Agent execution: 22/200 steps; 22 requests; 21 tool calls.\n- Tool usage: edit×3/0 errors, grace\\_doctor×1/0 errors, grace\\_prepare\\_task×1/0 errors, grace\\_record\\_validation×4/0 errors, grace\\_validate×1/0 errors, list\\_files×4/0 errors, read\\_file×5/0 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 19:grace\\_record\\_validation/ok, 20:list\\_files/ok, 21:grace\\_record\\_validation/ok.\n- Approved command diagnostics (0 retained): none.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`)."
+    },
+    {
+      "task": "ohmyform-submission-persistence-port",
+      "model": "mistralai/mistral-small-2603",
+      "campaignId": "stage-a-ohmyform-submission-persistence-port-mistral-small-2603",
+      "files": {
+        "manifest": true,
+        "aggregate": true,
+        "summary": true,
+        "campaignLog": true,
+        "runRecords": 6,
+        "missing": []
+      },
+      "runRecords": {
+        "attempts": 6,
+        "statuses": {
+          "scored": 0,
+          "functional_failed": 6,
+          "agent_error": 0,
+          "infrastructure_error": 0,
+          "evaluator_error": 0
+        },
+        "byCondition": {
+          "baseline": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          },
+          "grace": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          }
+        }
+      },
+      "aggregate": {
+        "baseline": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 4006081,
+          "completionTokens": 30205,
+          "totalTokens": 4036286,
+          "cost": 0.10350147,
+          "durationMeanMs": 132024
+        },
+        "grace": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 3079940,
+          "completionTokens": 25256,
+          "totalTokens": 3105196,
+          "cost": 0.10636193999999999,
+          "durationMeanMs": 110403
+        },
+        "paired": {
+          "functionalAttempts": 3,
+          "qualityAttempts": 0,
+          "functionalPassAt1Delta": 0,
+          "qualityPassAt1Delta": null,
+          "codeQualityDeltaMean": null,
+          "qualityGainPerAdditional1000TokensMean": null
+        }
+      },
+      "cli": {
+        "outcome": "completed",
+        "reason": null,
+        "excerpt": null
+      },
+      "summary": "# Benchmark summary — stage-a-ohmyform-submission-persistence-port-mistral-small-2603\n\n- Manifest: `sha256:fd27d93fe0d8064938382dbf5cf8e514ddf203b3b97ce70b405735054296c30d`\n- Full check/source/graph report: `report.md` in the workflow artifact\n- Canonical replay evidence: `runs/pair-*.json` in the workflow artifact\n- Bounded evaluator diagnostics and sanitized candidate recovery artifacts: `evaluator/` and `failures/`\n\n| Condition | Attempts | Scored attempts | Valid quality attempts | Functional pass@1 | Quality-qualified pass@1 | Code quality |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: |\n| baseline | 3 | 0 | 0 | 0.0% | — | — |\n| grace | 3 | 0 | 0 | 0.0% | — | — |\n\n- Functional pass@1 delta: 0.0%\n- Quality-qualified pass@1 delta: —\n- Mean code-quality delta: —\n- Tokens: 7141482 (7086021 prompt + 55461 completion)\n- OpenRouter cost: $0.209863\n\n## Attempt index\n\n| Pair | Condition | Status | Code quality | Violations | Canonical evidence |\n| --- | --- | --- | ---: | ---: | --- |\n| pair-01 | baseline | functional_failed | — | — | unavailable |\n| pair-01 | grace | functional_failed | — | — | unavailable |\n| pair-02 | grace | functional_failed | — | — | unavailable |\n| pair-02 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | grace | functional_failed | — | — | unavailable |\n\n## Compact raw scoring evidence\n\nEvery accepted check row is shown. Snippets and graph/path projections are display-bounded; canonical per-run JSON remains complete.\n\n### pair-01 · baseline · functional_failed\n\n- Agent execution: 69/200 steps; 69 requests; 68 tool calls.\n- Tool usage: edit×4/0 errors, grep×8/0 errors, list\\_files×11/0 errors, read\\_file×35/0 errors, run\\_command×5/5 errors, write\\_file×5/0 errors.\n- Recent tool activity (3/8 retained in summary): 66:list\\_files/ok, 67:write\\_file/ok, 68:list\\_files/ok.\n- Approved command diagnostics (4 retained; truncated): 27:—/command_not_approved, 28:—/command_not_approved, 30:—/command_not_approved, 31:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-01 · grace · functional_failed\n\n- Agent execution: 23/200 steps; 23 requests; 22 tool calls.\n- Tool usage: grace\\_prepare\\_task×1/0 errors, grep×1/0 errors, list\\_files×3/0 errors, read\\_file×9/0 errors, write\\_file×8/0 errors.\n- Recent tool activity (3/8 retained in summary): 20:write\\_file/ok, 21:write\\_file/ok, 22:write\\_file/ok.\n- Approved command diagnostics (0 retained): none.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · grace · functional_failed\n\n- Agent execution: 50/200 steps; 50 requests; 49 tool calls.\n- Tool usage: find\\_files×2/0 errors, grace\\_prepare\\_task×1/0 errors, grace\\_validate×4/0 errors, grep×4/0 errors, list\\_files×5/1 errors, read\\_file×20/0 errors, run\\_command×5/5 errors, write\\_file×8/0 errors.\n- Recent tool activity (3/8 retained in summary): 47:write\\_file/ok, 48:read\\_file/ok, 49:read\\_file/ok.\n- Approved command diagnostics (4 retained; truncated): 28:—/command_not_approved, 29:—/command_not_approved, 30:—/command_not_approved, 32:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · baseline · functional_failed\n\n- Agent execution: 63/200 steps; 63 requests; 62 tool calls.\n- Tool usage: edit×6/0 errors, grep×8/0 errors, list\\_files×5/0 errors, read\\_file×30/0 errors, run\\_command×4/4 errors, write\\_file×9/0 errors.\n- Recent tool activity (3/8 retained in summary): 60:grep/ok, 61:read\\_file/ok, 62:list\\_files/ok.\n- Approved command diagnostics (4 retained): 29:—/command_not_approved, 30:—/command_not_approved, 32:—/command_not_approved, 55:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nFunctional mismatches (3/3 shown; 0 redactions; 0 values truncated):\n\n| JSON pointer | Kind | Expected | Actual |\n| --- | --- | --- | --- |\n| /anonymous | missing | \\<object\\> | \\<missing\\> |\n| /error | unexpected | \\<missing\\> | \"submission\\_1.submissionModuleProviders is not iterable\" |\n| /regular | missing | \\<object\\> | \\<missing\\> |\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · baseline · functional_failed\n\n- Agent execution: 68/200 steps; 68 requests; 67 tool calls.\n- Tool usage: edit×9/1 errors, grep×3/0 errors, list\\_files×7/0 errors, read\\_file×34/1 errors, run\\_command×5/5 errors, write\\_file×9/0 errors.\n- Recent tool activity (3/8 retained in summary): 65:read\\_file/ok, 66:read\\_file/ok, 67:write\\_file/ok.\n- Approved command diagnostics (4 retained; truncated): 43:—/command_not_approved, 44:—/command_not_approved, 46:—/command_not_approved, 51:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · grace · functional_failed\n\n- Agent execution: 64/200 steps; 64 requests; 63 tool calls.\n- Tool usage: edit×2/0 errors, find\\_files×1/0 errors, grace\\_deepen×4/0 errors, grace\\_prepare\\_task×1/0 errors, grace\\_validate×1/0 errors, grep×4/0 errors, list\\_files×7/0 errors, read\\_file×24/0 errors, run\\_command×7/7 errors, write\\_file×12/0 errors.\n- Recent tool activity (3/8 retained in summary): 61:write\\_file/ok, 62:list\\_files/ok, 63:list\\_files/ok.\n- Approved command diagnostics (4 retained; truncated): 31:—/command_not_approved, 32:—/command_not_approved, 33:—/command_not_approved, 34:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`)."
+    },
+    {
+      "task": "ohmyform-submission-persistence-port",
+      "model": "openai/gpt-5.6-luna",
+      "campaignId": "stage-a-ohmyform-submission-persistence-port-gpt-5.6-luna",
+      "files": {
+        "manifest": true,
+        "aggregate": true,
+        "summary": true,
+        "campaignLog": true,
+        "runRecords": 6,
+        "missing": []
+      },
+      "runRecords": {
+        "attempts": 6,
+        "statuses": {
+          "scored": 0,
+          "functional_failed": 6,
+          "agent_error": 0,
+          "infrastructure_error": 0,
+          "evaluator_error": 0
+        },
+        "byCondition": {
+          "baseline": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          },
+          "grace": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          }
+        }
+      },
+      "aggregate": {
+        "baseline": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 1330938,
+          "completionTokens": 14728,
+          "totalTokens": 1345666,
+          "cost": 0.058035420000000004,
+          "durationMeanMs": 236562.33333333334
+        },
+        "grace": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 2033784,
+          "completionTokens": 17147,
+          "totalTokens": 2050931,
+          "cost": 0.08240615,
+          "durationMeanMs": 269545.3333333333
+        },
+        "paired": {
+          "functionalAttempts": 3,
+          "qualityAttempts": 0,
+          "functionalPassAt1Delta": 0,
+          "qualityPassAt1Delta": null,
+          "codeQualityDeltaMean": null,
+          "qualityGainPerAdditional1000TokensMean": null
+        }
+      },
+      "cli": {
+        "outcome": "completed",
+        "reason": null,
+        "excerpt": null
+      },
+      "summary": "# Benchmark summary — stage-a-ohmyform-submission-persistence-port-gpt-5.6-luna\n\n- Manifest: `sha256:61ef365646449609194f62bb8202f3c6be82d5f7e786f394f08d17ef7be0d423`\n- Full check/source/graph report: `report.md` in the workflow artifact\n- Canonical replay evidence: `runs/pair-*.json` in the workflow artifact\n- Bounded evaluator diagnostics and sanitized candidate recovery artifacts: `evaluator/` and `failures/`\n\n| Condition | Attempts | Scored attempts | Valid quality attempts | Functional pass@1 | Quality-qualified pass@1 | Code quality |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: |\n| baseline | 3 | 0 | 0 | 0.0% | — | — |\n| grace | 3 | 0 | 0 | 0.0% | — | — |\n\n- Functional pass@1 delta: 0.0%\n- Quality-qualified pass@1 delta: —\n- Mean code-quality delta: —\n- Tokens: 3396597 (3364722 prompt + 31875 completion)\n- OpenRouter cost: $0.140442\n\n## Attempt index\n\n| Pair | Condition | Status | Code quality | Violations | Canonical evidence |\n| --- | --- | --- | ---: | ---: | --- |\n| pair-01 | baseline | functional_failed | — | — | unavailable |\n| pair-01 | grace | functional_failed | — | — | unavailable |\n| pair-02 | grace | functional_failed | — | — | unavailable |\n| pair-02 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | grace | functional_failed | — | — | unavailable |\n\n## Compact raw scoring evidence\n\nEvery accepted check row is shown. Snippets and graph/path projections are display-bounded; canonical per-run JSON remains complete.\n\n### pair-01 · baseline · functional_failed\n\n- Agent execution: 28/200 steps; 29 requests; 42 tool calls.\n- Tool usage: edit×15/0 errors, grep×3/0 errors, list\\_files×2/0 errors, read\\_file×16/0 errors, run\\_command×4/4 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 25:edit/ok, 26:edit/ok, 27:read\\_file/ok.\n- Approved command diagnostics (4 retained): 20:—/command_not_approved, 20:—/command_not_approved, 21:—/command_not_approved, 21:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-01 · grace · functional_failed\n\n- Agent execution: 38/200 steps; 41 requests; 56 tool calls.\n- Tool usage: edit×16/0 errors, find\\_files×4/0 errors, grace\\_deepen×2/0 errors, grace\\_prepare\\_task×1/0 errors, grace\\_record\\_validation×1/0 errors, grace\\_validate×4/0 errors, grep×3/0 errors, list\\_files×1/0 errors, read\\_file×19/0 errors, run\\_command×3/3 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 35:edit/ok, 36:run\\_command/execution_error, 37:grace\\_record\\_validation/ok.\n- Approved command diagnostics (3 retained): 23:—/command_not_approved, 24:—/command_not_approved, 36:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · grace · functional_failed\n\n- Agent execution: 30/200 steps; 32 requests; 53 tool calls.\n- Tool usage: edit×11/0 errors, find\\_files×1/0 errors, grace\\_deepen×3/0 errors, grace\\_prepare\\_task×1/0 errors, grace\\_record\\_validation×1/0 errors, grace\\_validate×6/0 errors, grep×4/0 errors, list\\_files×1/0 errors, read\\_file×18/0 errors, run\\_command×4/4 errors, write\\_file×3/0 errors.\n- Recent tool activity (3/8 retained in summary): 27:edit/ok, 28:edit/ok, 29:read\\_file/ok.\n- Approved command diagnostics (4 retained): 20:—/command_not_approved, 21:—/command_not_approved, 22:—/command_not_approved, 25:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · baseline · functional_failed\n\n- Agent execution: 32/200 steps; 34 requests; 49 tool calls.\n- Tool usage: edit×14/0 errors, find\\_files×1/0 errors, grep×5/0 errors, list\\_files×1/0 errors, read\\_file×24/0 errors, run\\_command×2/2 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 29:edit/ok, 30:grep/ok, 31:read\\_file/ok.\n- Approved command diagnostics (2 retained): 20:—/command_not_approved, 21:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · baseline · functional_failed\n\n- Agent execution: 33/200 steps; 37 requests; 49 tool calls.\n- Tool usage: edit×17/0 errors, find\\_files×1/0 errors, grep×3/1 errors, list\\_files×1/0 errors, read\\_file×21/0 errors, run\\_command×4/4 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 30:edit/ok, 31:edit/ok, 32:read\\_file/ok.\n- Approved command diagnostics (4 retained): 22:—/command_not_approved, 22:—/command_not_approved, 23:—/command_not_approved, 23:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · grace · functional_failed\n\n- Agent execution: 31/200 steps; 34 requests; 59 tool calls.\n- Tool usage: edit×11/0 errors, find\\_files×9/0 errors, grace\\_deepen×3/0 errors, grace\\_prepare\\_task×1/0 errors, grace\\_record\\_validation×1/0 errors, grace\\_validate×5/0 errors, grep×4/0 errors, read\\_file×19/0 errors, run\\_command×4/4 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 28:read\\_file/ok, 29:run\\_command/execution_error, 30:grace\\_record\\_validation/ok.\n- Approved command diagnostics (4 retained): 23:—/command_not_approved, 24:—/command_not_approved, 26:—/command_not_approved, 29:—/command_not_approved.\n- Candidate recovery: unavailable (`recovery_unavailable`) — candidate recovery tree contains a non-regular entry.\n\nScoring evidence: **not evaluated** (run status: `functional_failed`)."
+    },
+    {
+      "task": "ts-field-validator-feature",
+      "model": "google/gemini-3.1-flash-lite",
+      "campaignId": "stage-a-ts-field-validator-feature-gemini-3.1-flash-lite",
+      "files": {
+        "manifest": true,
+        "aggregate": true,
+        "summary": true,
+        "campaignLog": true,
+        "runRecords": 6,
+        "missing": []
+      },
+      "runRecords": {
+        "attempts": 6,
+        "statuses": {
+          "scored": 0,
+          "functional_failed": 2,
+          "agent_error": 4,
+          "infrastructure_error": 0,
+          "evaluator_error": 0
+        },
+        "byCondition": {
+          "baseline": {
+            "scored": 0,
+            "functional_failed": 0,
+            "agent_error": 3,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          },
+          "grace": {
+            "scored": 0,
+            "functional_failed": 2,
+            "agent_error": 1,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          }
+        }
+      },
+      "aggregate": {
+        "baseline": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 3264803,
+          "completionTokens": 16371,
+          "totalTokens": 3281174,
+          "cost": 0.278375375,
+          "durationMeanMs": 176169.33333333334
+        },
+        "grace": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 2692278,
+          "completionTokens": 9355,
+          "totalTokens": 2701633,
+          "cost": 0.167943975,
+          "durationMeanMs": 47695
+        },
+        "paired": {
+          "functionalAttempts": 3,
+          "qualityAttempts": 0,
+          "functionalPassAt1Delta": 0,
+          "qualityPassAt1Delta": null,
+          "codeQualityDeltaMean": null,
+          "qualityGainPerAdditional1000TokensMean": null
+        }
+      },
+      "cli": {
+        "outcome": "completed",
+        "reason": null,
+        "excerpt": null
+      },
+      "summary": "# Benchmark summary — stage-a-ts-field-validator-feature-gemini-3.1-flash-lite\n\n- Manifest: `sha256:7d87efc9ffa335ac217199d0f1801c78c1b40045bade15ea410d4121acf6abaf`\n- Full check/source/graph report: `report.md` in the workflow artifact\n- Canonical replay evidence: `runs/pair-*.json` in the workflow artifact\n- Bounded evaluator diagnostics and sanitized candidate recovery artifacts: `evaluator/` and `failures/`\n\n| Condition | Attempts | Scored attempts | Valid quality attempts | Functional pass@1 | Quality-qualified pass@1 | Code quality |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: |\n| baseline | 3 | 0 | 0 | 0.0% | — | — |\n| grace | 3 | 0 | 0 | 0.0% | — | — |\n\n- Functional pass@1 delta: 0.0%\n- Quality-qualified pass@1 delta: —\n- Mean code-quality delta: —\n- Tokens: 5982807 (5957081 prompt + 25726 completion)\n- OpenRouter cost: $0.446319\n\n## Attempt index\n\n| Pair | Condition | Status | Code quality | Violations | Canonical evidence |\n| --- | --- | --- | ---: | ---: | --- |\n| pair-01 | baseline | agent_error | — | — | unavailable |\n| pair-01 | grace | agent_error | — | — | unavailable |\n| pair-02 | grace | functional_failed | — | — | unavailable |\n| pair-02 | baseline | agent_error | — | — | unavailable |\n| pair-03 | baseline | agent_error | — | — | unavailable |\n| pair-03 | grace | functional_failed | — | — | unavailable |\n\n## Compact raw scoring evidence\n\nEvery accepted check row is shown. Snippets and graph/path projections are display-bounded; canonical per-run JSON remains complete.\n\n### pair-01 · baseline · agent_error\n\n- Agent execution: 200/200 steps; 200 requests; 200 tool calls; `step_budget_exhausted` — agent step budget exhausted.\n- Tool usage: list\\_files×2/0 errors, read\\_file×2/0 errors, run\\_command×193/193 errors, write\\_file×3/0 errors.\n- Recent tool activity (3/8 retained in summary): 198:run\\_command/execution_error, 199:run\\_command/execution_error, 200:run\\_command/execution_error.\n- Approved command diagnostics (4 retained; truncated): 5:—/command_not_approved, 8:—/command_not_approved, 10:—/command_not_approved, 11:—/command_not_approved.\n- Candidate recovery: [failures/pair-01-baseline-candidate-recovery.json](failures/pair-01-baseline-candidate-recovery.json) (bounded artifact; 3 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `agent_error`).\n\n### pair-01 · grace · agent_error\n\n- Agent execution: 70/200 steps; 70 requests; 70 tool calls; `token_budget_exhausted` — agent token budget exhausted before request.\n- Tool usage: edit×5/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_doctor×1/0 errors, grace\\_install\\_talents×1/0 errors, grace\\_prepare\\_task×1/0 errors, grace\\_validate×2/0 errors, list\\_files×2/0 errors, read\\_file×3/0 errors, run\\_command×52/52 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 68:run\\_command/execution_error, 69:run\\_command/execution_error, 70:run\\_command/execution_error.\n- Approved command diagnostics (4 retained; truncated): 5:—/command_not_approved, 14:—/command_not_approved, 15:—/command_not_approved, 22:—/command_not_approved.\n- Candidate recovery: [failures/pair-01-grace-candidate-recovery.json](failures/pair-01-grace-candidate-recovery.json) (bounded artifact; 3 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `agent_error`).\n\n### pair-02 · grace · functional_failed\n\n- Agent execution: 9/200 steps; 9 requests; 8 tool calls.\n- Tool usage: grace\\_discover\\_codebase×1/0 errors, grace\\_prepare\\_task×1/0 errors, list\\_files×2/0 errors, read\\_file×3/0 errors, run\\_command×1/1 errors.\n- Recent tool activity (3/8 retained in summary): 6:list\\_files/ok, 7:read\\_file/ok, 8:read\\_file/ok.\n- Approved command diagnostics (1 retained): 5:—/command_not_approved.\n- Candidate recovery: [failures/pair-02-grace-candidate-recovery.json](failures/pair-02-grace-candidate-recovery.json) (bounded artifact; 0 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · baseline · agent_error\n\n- Agent execution: 200/200 steps; 200 requests; 200 tool calls; `step_budget_exhausted` — agent step budget exhausted.\n- Tool usage: edit×1/0 errors, list\\_files×1/0 errors, read\\_file×1/0 errors, run\\_command×195/195 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 198:run\\_command/execution_error, 199:run\\_command/execution_error, 200:run\\_command/execution_error.\n- Approved command diagnostics (4 retained; truncated): 5:—/command_not_approved, 7:—/command_not_approved, 8:—/command_not_approved, 9:—/command_not_approved.\n- Candidate recovery: [failures/pair-02-baseline-candidate-recovery.json](failures/pair-02-baseline-candidate-recovery.json) (bounded artifact; 3 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `agent_error`).\n\n### pair-03 · baseline · agent_error\n\n- Agent execution: 200/200 steps; 200 requests; 200 tool calls; `step_budget_exhausted` — agent step budget exhausted.\n- Tool usage: edit×8/2 errors, list\\_files×1/0 errors, read\\_file×3/0 errors, run\\_command×186/180 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 198:run\\_command/execution_error, 199:run\\_command/execution_error, 200:run\\_command/execution_error.\n- Approved command diagnostics (4 retained; truncated): 5:—/command_not_approved, 7:—/command_not_approved, 9:check/passed/exit 0, 11:check/passed/exit 0.\n- Candidate recovery: [failures/pair-03-baseline-candidate-recovery.json](failures/pair-03-baseline-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `agent_error`).\n\n### pair-03 · grace · functional_failed\n\n- Agent execution: 28/200 steps; 28 requests; 27 tool calls.\n- Tool usage: edit×1/0 errors, grace\\_deepen×2/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_doctor×2/0 errors, grace\\_install\\_talents×1/0 errors, grace\\_prepare\\_task×2/0 errors, grace\\_record\\_validation×7/0 errors, grace\\_validate×3/0 errors, list\\_files×2/0 errors, read\\_file×3/0 errors, run\\_command×2/2 errors, write\\_file×1/0 errors.\n- Recent tool activity (3/8 retained in summary): 25:grace\\_record\\_validation/ok, 26:grace\\_record\\_validation/ok, 27:grace\\_record\\_validation/ok.\n- Approved command diagnostics (2 retained): 5:—/command_not_approved, 10:—/command_not_approved.\n- Candidate recovery: [failures/pair-03-grace-candidate-recovery.json](failures/pair-03-grace-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`)."
+    },
+    {
+      "task": "ts-field-validator-feature",
+      "model": "mistralai/mistral-small-2603",
+      "campaignId": "stage-a-ts-field-validator-feature-mistral-small-2603",
+      "files": {
+        "manifest": true,
+        "aggregate": true,
+        "summary": true,
+        "campaignLog": true,
+        "runRecords": 6,
+        "missing": []
+      },
+      "runRecords": {
+        "attempts": 6,
+        "statuses": {
+          "scored": 0,
+          "functional_failed": 6,
+          "agent_error": 0,
+          "infrastructure_error": 0,
+          "evaluator_error": 0
+        },
+        "byCondition": {
+          "baseline": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          },
+          "grace": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          }
+        }
+      },
+      "aggregate": {
+        "baseline": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 628623,
+          "completionTokens": 34811,
+          "totalTokens": 663434,
+          "cost": 0.038862930000000004,
+          "durationMeanMs": 74338.66666666667
+        },
+        "grace": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 3464621,
+          "completionTokens": 40296,
+          "totalTokens": 3504917,
+          "cost": 0.09724755,
+          "durationMeanMs": 97993.33333333333
+        },
+        "paired": {
+          "functionalAttempts": 3,
+          "qualityAttempts": 0,
+          "functionalPassAt1Delta": 0,
+          "qualityPassAt1Delta": null,
+          "codeQualityDeltaMean": null,
+          "qualityGainPerAdditional1000TokensMean": null
+        }
+      },
+      "cli": {
+        "outcome": "completed",
+        "reason": null,
+        "excerpt": null
+      },
+      "summary": "# Benchmark summary — stage-a-ts-field-validator-feature-mistral-small-2603\n\n- Manifest: `sha256:6b5ce9506a2f73786d4f4ae5851e9a6c5b8b83e674b30c1861a8634f0f3e8eea`\n- Full check/source/graph report: `report.md` in the workflow artifact\n- Canonical replay evidence: `runs/pair-*.json` in the workflow artifact\n- Bounded evaluator diagnostics and sanitized candidate recovery artifacts: `evaluator/` and `failures/`\n\n| Condition | Attempts | Scored attempts | Valid quality attempts | Functional pass@1 | Quality-qualified pass@1 | Code quality |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: |\n| baseline | 3 | 0 | 0 | 0.0% | — | — |\n| grace | 3 | 0 | 0 | 0.0% | — | — |\n\n- Functional pass@1 delta: 0.0%\n- Quality-qualified pass@1 delta: —\n- Mean code-quality delta: —\n- Tokens: 4168351 (4093244 prompt + 75107 completion)\n- OpenRouter cost: $0.136110\n\n## Attempt index\n\n| Pair | Condition | Status | Code quality | Violations | Canonical evidence |\n| --- | --- | --- | ---: | ---: | --- |\n| pair-01 | baseline | functional_failed | — | — | unavailable |\n| pair-01 | grace | functional_failed | — | — | unavailable |\n| pair-02 | grace | functional_failed | — | — | unavailable |\n| pair-02 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | grace | functional_failed | — | — | unavailable |\n\n## Compact raw scoring evidence\n\nEvery accepted check row is shown. Snippets and graph/path projections are display-bounded; canonical per-run JSON remains complete.\n\n### pair-01 · baseline · functional_failed\n\n- Agent execution: 20/200 steps; 20 requests; 19 tool calls.\n- Tool usage: edit×1/0 errors, find\\_files×1/0 errors, list\\_files×5/3 errors, read\\_file×3/0 errors, run\\_command×5/0 errors, write\\_file×4/0 errors.\n- Recent tool activity (3/8 retained in summary): 17:read\\_file/ok, 18:list\\_files/ok, 19:run\\_command/ok.\n- Approved command diagnostics (4 retained; truncated): 10:check/command_exit/exit 1, 12:check/command_exit/exit 1, 14:check/command_exit/exit 1, 16:check/passed/exit 0.\n- Candidate recovery: [failures/pair-01-baseline-candidate-recovery.json](failures/pair-01-baseline-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-01 · grace · functional_failed\n\n- Agent execution: 35/200 steps; 35 requests; 34 tool calls.\n- Tool usage: edit×2/1 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_prepare\\_task×2/0 errors, grace\\_validate×1/0 errors, list\\_files×2/0 errors, read\\_file×3/0 errors, run\\_command×11/4 errors, write\\_file×12/0 errors.\n- Recent tool activity (3/8 retained in summary): 32:run\\_command/execution_error, 33:run\\_command/execution_error, 34:grace\\_validate/ok.\n- Approved command diagnostics (4 retained; truncated): 9:check/passed/exit 0, 11:check/passed/exit 0, 14:check/passed/exit 0, 15:—/command_not_approved.\n- Candidate recovery: [failures/pair-01-grace-candidate-recovery.json](failures/pair-01-grace-candidate-recovery.json) (bounded artifact; 4 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · grace · functional_failed\n\n- Agent execution: 39/200 steps; 39 requests; 38 tool calls.\n- Tool usage: edit×2/0 errors, grace\\_deepen×2/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_install\\_talents×1/0 errors, grace\\_prepare\\_task×2/0 errors, grace\\_validate×2/0 errors, list\\_files×1/0 errors, read\\_file×9/1 errors, run\\_command×7/5 errors, write\\_file×11/0 errors.\n- Recent tool activity (3/8 retained in summary): 36:write\\_file/ok, 37:grace\\_validate/ok, 38:write\\_file/ok.\n- Approved command diagnostics (4 retained; truncated): 14:check/passed/exit 0, 15:—/command_not_approved, 16:—/command_not_approved, 17:—/command_not_approved.\n- Candidate recovery: [failures/pair-02-grace-candidate-recovery.json](failures/pair-02-grace-candidate-recovery.json) (bounded artifact; 9 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · baseline · functional_failed\n\n- Agent execution: 19/200 steps; 19 requests; 18 tool calls.\n- Tool usage: edit×1/0 errors, find\\_files×3/0 errors, list\\_files×5/1 errors, read\\_file×3/0 errors, run\\_command×4/0 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 16:read\\_file/ok, 17:list\\_files/ok, 18:run\\_command/ok.\n- Approved command diagnostics (4 retained): 10:check/passed/exit 0, 13:check/command_exit/exit 1, 15:check/passed/exit 0, 18:check/passed/exit 0.\n- Candidate recovery: [failures/pair-02-baseline-candidate-recovery.json](failures/pair-02-baseline-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · baseline · functional_failed\n\n- Agent execution: 26/200 steps; 26 requests; 25 tool calls.\n- Tool usage: edit×2/0 errors, find\\_files×2/0 errors, list\\_files×4/0 errors, read\\_file×3/0 errors, run\\_command×8/0 errors, write\\_file×6/0 errors.\n- Recent tool activity (3/8 retained in summary): 23:list\\_files/ok, 24:run\\_command/ok, 25:run\\_command/ok.\n- Approved command diagnostics (4 retained; truncated): 7:check/passed/exit 0, 11:check/command_exit/exit 1, 13:check/command_exit/exit 1, 17:check/command_exit/exit 1.\n- Candidate recovery: [failures/pair-03-baseline-candidate-recovery.json](failures/pair-03-baseline-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · grace · functional_failed\n\n- Agent execution: 38/200 steps; 38 requests; 37 tool calls.\n- Tool usage: edit×6/0 errors, grace\\_deepen×1/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_doctor×1/0 errors, grace\\_install\\_talents×1/0 errors, grace\\_prepare\\_task×1/0 errors, list\\_files×2/0 errors, read\\_file×3/0 errors, run\\_command×9/2 errors, write\\_file×12/0 errors.\n- Recent tool activity (3/8 retained in summary): 35:write\\_file/ok, 36:run\\_command/execution_error, 37:write\\_file/ok.\n- Approved command diagnostics (4 retained; truncated): 11:check/command_exit/exit 1, 18:check/command_exit/exit 1, 20:check/command_exit/exit 1, 22:check/command_exit/exit 1.\n- Candidate recovery: [failures/pair-03-grace-candidate-recovery.json](failures/pair-03-grace-candidate-recovery.json) (bounded artifact; 3 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`)."
+    },
+    {
+      "task": "ts-field-validator-feature",
+      "model": "openai/gpt-5.6-luna",
+      "campaignId": "stage-a-ts-field-validator-feature-gpt-5.6-luna",
+      "files": {
+        "manifest": true,
+        "aggregate": true,
+        "summary": true,
+        "campaignLog": true,
+        "runRecords": 6,
+        "missing": []
+      },
+      "runRecords": {
+        "attempts": 6,
+        "statuses": {
+          "scored": 0,
+          "functional_failed": 6,
+          "agent_error": 0,
+          "infrastructure_error": 0,
+          "evaluator_error": 0
+        },
+        "byCondition": {
+          "baseline": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          },
+          "grace": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          }
+        }
+      },
+      "aggregate": {
+        "baseline": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 52895,
+          "completionTokens": 8198,
+          "totalTokens": 61093,
+          "cost": 0.014386389999999999,
+          "durationMeanMs": 34038.666666666664
+        },
+        "grace": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 853848,
+          "completionTokens": 9724,
+          "totalTokens": 863572,
+          "cost": 0.04392558,
+          "durationMeanMs": 148493.33333333334
+        },
+        "paired": {
+          "functionalAttempts": 3,
+          "qualityAttempts": 0,
+          "functionalPassAt1Delta": 0,
+          "qualityPassAt1Delta": null,
+          "codeQualityDeltaMean": null,
+          "qualityGainPerAdditional1000TokensMean": null
+        }
+      },
+      "cli": {
+        "outcome": "completed",
+        "reason": null,
+        "excerpt": null
+      },
+      "summary": "# Benchmark summary — stage-a-ts-field-validator-feature-gpt-5.6-luna\n\n- Manifest: `sha256:4bc8701e85dd3e17e7dfd38821a3f2423e9389c7c67a69c838b56c1ca1bc9378`\n- Full check/source/graph report: `report.md` in the workflow artifact\n- Canonical replay evidence: `runs/pair-*.json` in the workflow artifact\n- Bounded evaluator diagnostics and sanitized candidate recovery artifacts: `evaluator/` and `failures/`\n\n| Condition | Attempts | Scored attempts | Valid quality attempts | Functional pass@1 | Quality-qualified pass@1 | Code quality |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: |\n| baseline | 3 | 0 | 0 | 0.0% | — | — |\n| grace | 3 | 0 | 0 | 0.0% | — | — |\n\n- Functional pass@1 delta: 0.0%\n- Quality-qualified pass@1 delta: —\n- Mean code-quality delta: —\n- Tokens: 924665 (906743 prompt + 17922 completion)\n- OpenRouter cost: $0.058312\n\n## Attempt index\n\n| Pair | Condition | Status | Code quality | Violations | Canonical evidence |\n| --- | --- | --- | ---: | ---: | --- |\n| pair-01 | baseline | functional_failed | — | — | unavailable |\n| pair-01 | grace | functional_failed | — | — | unavailable |\n| pair-02 | grace | functional_failed | — | — | unavailable |\n| pair-02 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | grace | functional_failed | — | — | unavailable |\n\n## Compact raw scoring evidence\n\nEvery accepted check row is shown. Snippets and graph/path projections are display-bounded; canonical per-run JSON remains complete.\n\n### pair-01 · baseline · functional_failed\n\n- Agent execution: 8/200 steps; 8 requests; 10 tool calls.\n- Tool usage: edit×2/0 errors, find\\_files×2/0 errors, list\\_files×1/0 errors, read\\_file×2/0 errors, run\\_command×1/0 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 5:edit/ok, 6:edit/ok, 7:run\\_command/ok.\n- Approved command diagnostics (1 retained): 7:check/passed/exit 0.\n- Candidate recovery: [failures/pair-01-baseline-candidate-recovery.json](failures/pair-01-baseline-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-01 · grace · functional_failed\n\n- Agent execution: 14/200 steps; 15 requests; 16 tool calls.\n- Tool usage: edit×1/0 errors, find\\_files×1/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_prepare\\_task×1/0 errors, grace\\_record\\_validation×1/0 errors, grace\\_validate×3/0 errors, list\\_files×1/0 errors, read\\_file×4/0 errors, run\\_command×1/0 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 12:grace\\_record\\_validation/ok, 13:read\\_file/ok, 13:read\\_file/ok.\n- Approved command diagnostics (1 retained): 8:check/passed/exit 0.\n- Candidate recovery: [failures/pair-01-grace-candidate-recovery.json](failures/pair-01-grace-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · grace · functional_failed\n\n- Agent execution: 24/200 steps; 27 requests; 26 tool calls.\n- Tool usage: edit×5/0 errors, find\\_files×1/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_doctor×1/0 errors, grace\\_install\\_talents×1/0 errors, grace\\_prepare\\_task×1/0 errors, grace\\_record\\_validation×1/0 errors, grace\\_validate×5/0 errors, list\\_files×1/0 errors, read\\_file×3/0 errors, run\\_command×4/1 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 22:run\\_command/ok, 23:grace\\_validate/ok, 23:grace\\_validate/ok.\n- Approved command diagnostics (4 retained): 12:—/command_not_approved, 13:check/passed/exit 0, 17:check/passed/exit 0, 22:check/passed/exit 0.\n- Candidate recovery: [failures/pair-02-grace-candidate-recovery.json](failures/pair-02-grace-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · baseline · functional_failed\n\n- Agent execution: 8/200 steps; 8 requests; 8 tool calls.\n- Tool usage: edit×1/0 errors, find\\_files×1/0 errors, list\\_files×1/0 errors, read\\_file×2/0 errors, run\\_command×1/0 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 5:edit/ok, 6:write\\_file/ok, 7:run\\_command/ok.\n- Approved command diagnostics (1 retained): 7:check/passed/exit 0.\n- Candidate recovery: [failures/pair-02-baseline-candidate-recovery.json](failures/pair-02-baseline-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · baseline · functional_failed\n\n- Agent execution: 7/200 steps; 7 requests; 8 tool calls.\n- Tool usage: edit×1/0 errors, find\\_files×1/0 errors, list\\_files×1/0 errors, read\\_file×2/0 errors, run\\_command×1/0 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 4:write\\_file/ok, 5:edit/ok, 6:run\\_command/ok.\n- Approved command diagnostics (1 retained): 6:check/passed/exit 0.\n- Candidate recovery: [failures/pair-03-baseline-candidate-recovery.json](failures/pair-03-baseline-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · grace · functional_failed\n\n- Agent execution: 4/200 steps; 5 requests; 3 tool calls.\n- Tool usage: grace\\_discover\\_codebase×1/0 errors, grace\\_doctor×1/0 errors, grace\\_prepare\\_task×1/0 errors.\n- Recent tool activity (3/3 retained in summary): 1:grace\\_prepare\\_task/ok, 2:grace\\_doctor/ok, 3:grace\\_discover\\_codebase/ok.\n- Approved command diagnostics (0 retained): none.\n- Candidate recovery: [failures/pair-03-grace-candidate-recovery.json](failures/pair-03-grace-candidate-recovery.json) (bounded artifact; 0 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`)."
+    },
+    {
+      "task": "ts-pagination-window-bugfix",
+      "model": "google/gemini-3.1-flash-lite",
+      "campaignId": "stage-a-ts-pagination-window-bugfix-gemini-3.1-flash-lite",
+      "files": {
+        "manifest": true,
+        "aggregate": true,
+        "summary": true,
+        "campaignLog": true,
+        "runRecords": 6,
+        "missing": []
+      },
+      "runRecords": {
+        "attempts": 6,
+        "statuses": {
+          "scored": 0,
+          "functional_failed": 3,
+          "agent_error": 3,
+          "infrastructure_error": 0,
+          "evaluator_error": 0
+        },
+        "byCondition": {
+          "baseline": {
+            "scored": 0,
+            "functional_failed": 1,
+            "agent_error": 2,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          },
+          "grace": {
+            "scored": 0,
+            "functional_failed": 2,
+            "agent_error": 1,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          }
+        }
+      },
+      "aggregate": {
+        "baseline": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 3185990,
+          "completionTokens": 18225,
+          "totalTokens": 3204215,
+          "cost": 0.282818,
+          "durationMeanMs": 190850.33333333334
+        },
+        "grace": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 3314778,
+          "completionTokens": 14861,
+          "totalTokens": 3329639,
+          "cost": 0.214094925,
+          "durationMeanMs": 69987
+        },
+        "paired": {
+          "functionalAttempts": 3,
+          "qualityAttempts": 0,
+          "functionalPassAt1Delta": 0,
+          "qualityPassAt1Delta": null,
+          "codeQualityDeltaMean": null,
+          "qualityGainPerAdditional1000TokensMean": null
+        }
+      },
+      "cli": {
+        "outcome": "completed",
+        "reason": null,
+        "excerpt": null
+      },
+      "summary": "# Benchmark summary — stage-a-ts-pagination-window-bugfix-gemini-3.1-flash-lite\n\n- Manifest: `sha256:e21a5cc07e942206132311fe81dd3dbafb279b3a225263e776b573c1e7e164c6`\n- Full check/source/graph report: `report.md` in the workflow artifact\n- Canonical replay evidence: `runs/pair-*.json` in the workflow artifact\n- Bounded evaluator diagnostics and sanitized candidate recovery artifacts: `evaluator/` and `failures/`\n\n| Condition | Attempts | Scored attempts | Valid quality attempts | Functional pass@1 | Quality-qualified pass@1 | Code quality |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: |\n| baseline | 3 | 0 | 0 | 0.0% | — | — |\n| grace | 3 | 0 | 0 | 0.0% | — | — |\n\n- Functional pass@1 delta: 0.0%\n- Quality-qualified pass@1 delta: —\n- Mean code-quality delta: —\n- Tokens: 6533854 (6500768 prompt + 33086 completion)\n- OpenRouter cost: $0.496913\n\n## Attempt index\n\n| Pair | Condition | Status | Code quality | Violations | Canonical evidence |\n| --- | --- | --- | ---: | ---: | --- |\n| pair-01 | baseline | functional_failed | — | — | unavailable |\n| pair-01 | grace | functional_failed | — | — | unavailable |\n| pair-02 | grace | functional_failed | — | — | unavailable |\n| pair-02 | baseline | agent_error | — | — | unavailable |\n| pair-03 | baseline | agent_error | — | — | unavailable |\n| pair-03 | grace | agent_error | — | — | unavailable |\n\n## Compact raw scoring evidence\n\nEvery accepted check row is shown. Snippets and graph/path projections are display-bounded; canonical per-run JSON remains complete.\n\n### pair-01 · baseline · functional_failed\n\n- Agent execution: 200/200 steps; 200 requests; 199 tool calls.\n- Tool usage: list\\_files×1/0 errors, read\\_file×1/0 errors, run\\_command×193/193 errors, write\\_file×4/0 errors.\n- Recent tool activity (3/8 retained in summary): 197:run\\_command/execution_error, 198:run\\_command/execution_error, 199:run\\_command/execution_error.\n- Approved command diagnostics (4 retained; truncated): 4:—/command_not_approved, 6:—/command_not_approved, 9:—/command_not_approved, 10:—/command_not_approved.\n- Candidate recovery: [failures/pair-01-baseline-candidate-recovery.json](failures/pair-01-baseline-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-01 · grace · functional_failed\n\n- Agent execution: 29/200 steps; 29 requests; 28 tool calls.\n- Tool usage: edit×1/0 errors, grace\\_deepen×4/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_doctor×1/0 errors, grace\\_install\\_talents×1/0 errors, grace\\_prepare\\_task×2/0 errors, grace\\_record\\_validation×6/0 errors, grace\\_validate×2/0 errors, list\\_files×3/0 errors, read\\_file×2/0 errors, run\\_command×3/3 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 26:grace\\_record\\_validation/ok, 27:grace\\_record\\_validation/ok, 28:grace\\_record\\_validation/ok.\n- Approved command diagnostics (3 retained): 9:—/command_not_approved, 12:—/command_not_approved, 14:—/command_not_approved.\n- Candidate recovery: [failures/pair-01-grace-candidate-recovery.json](failures/pair-01-grace-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · grace · functional_failed\n\n- Agent execution: 32/200 steps; 32 requests; 31 tool calls.\n- Tool usage: edit×1/0 errors, find\\_files×1/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_doctor×1/0 errors, grace\\_install\\_talents×1/0 errors, grace\\_prepare\\_task×1/0 errors, grace\\_record\\_validation×15/0 errors, grace\\_validate×3/0 errors, list\\_files×1/0 errors, read\\_file×3/0 errors, run\\_command×2/0 errors, write\\_file×1/0 errors.\n- Recent tool activity (3/8 retained in summary): 29:grace\\_record\\_validation/ok, 30:grace\\_record\\_validation/ok, 31:grace\\_record\\_validation/ok.\n- Approved command diagnostics (2 retained): 9:check/command_exit/exit 1, 11:check/passed/exit 0.\n- Candidate recovery: [failures/pair-02-grace-candidate-recovery.json](failures/pair-02-grace-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · baseline · agent_error\n\n- Agent execution: 200/200 steps; 200 requests; 200 tool calls; `step_budget_exhausted` — agent step budget exhausted.\n- Tool usage: edit×1/0 errors, find\\_files×1/0 errors, list\\_files×1/0 errors, read\\_file×1/0 errors, run\\_command×194/194 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 198:run\\_command/execution_error, 199:run\\_command/execution_error, 200:run\\_command/execution_error.\n- Approved command diagnostics (4 retained; truncated): 5:—/command_not_approved, 6:—/command_not_approved, 7:—/command_not_approved, 8:—/command_not_approved.\n- Candidate recovery: [failures/pair-02-baseline-candidate-recovery.json](failures/pair-02-baseline-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `agent_error`).\n\n### pair-03 · baseline · agent_error\n\n- Agent execution: 200/200 steps; 200 requests; 200 tool calls; `step_budget_exhausted` — agent step budget exhausted.\n- Tool usage: edit×1/0 errors, list\\_files×1/0 errors, read\\_file×1/0 errors, run\\_command×195/195 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 198:run\\_command/execution_error, 199:run\\_command/execution_error, 200:run\\_command/execution_error.\n- Approved command diagnostics (4 retained; truncated): 5:—/command_not_approved, 7:—/command_not_approved, 8:—/command_not_approved, 9:—/command_not_approved.\n- Candidate recovery: [failures/pair-03-baseline-candidate-recovery.json](failures/pair-03-baseline-candidate-recovery.json) (bounded artifact; 1 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `agent_error`).\n\n### pair-03 · grace · agent_error\n\n- Agent execution: 98/200 steps; 98 requests; 98 tool calls; `token_budget_exhausted` — agent token budget exhausted before request.\n- Tool usage: edit×4/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_prepare\\_task×1/0 errors, list\\_files×2/0 errors, read\\_file×2/0 errors, run\\_command×87/87 errors, write\\_file×1/0 errors.\n- Recent tool activity (3/8 retained in summary): 96:run\\_command/execution_error, 97:run\\_command/execution_error, 98:run\\_command/execution_error.\n- Approved command diagnostics (4 retained; truncated): 6:—/command_not_approved, 9:—/command_not_approved, 12:—/command_not_approved, 15:—/command_not_approved.\n- Candidate recovery: [failures/pair-03-grace-candidate-recovery.json](failures/pair-03-grace-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `agent_error`)."
+    },
+    {
+      "task": "ts-pagination-window-bugfix",
+      "model": "mistralai/mistral-small-2603",
+      "campaignId": "stage-a-ts-pagination-window-bugfix-mistral-small-2603",
+      "files": {
+        "manifest": true,
+        "aggregate": true,
+        "summary": true,
+        "campaignLog": true,
+        "runRecords": 6,
+        "missing": []
+      },
+      "runRecords": {
+        "attempts": 6,
+        "statuses": {
+          "scored": 0,
+          "functional_failed": 6,
+          "agent_error": 0,
+          "infrastructure_error": 0,
+          "evaluator_error": 0
+        },
+        "byCondition": {
+          "baseline": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          },
+          "grace": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          }
+        }
+      },
+      "aggregate": {
+        "baseline": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 485260,
+          "completionTokens": 23540,
+          "totalTokens": 508800,
+          "cost": 0.031740120000000004,
+          "durationMeanMs": 59950.666666666664
+        },
+        "grace": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 2010185,
+          "completionTokens": 29058,
+          "totalTokens": 2039243,
+          "cost": 0.07455639,
+          "durationMeanMs": 80845.66666666667
+        },
+        "paired": {
+          "functionalAttempts": 3,
+          "qualityAttempts": 0,
+          "functionalPassAt1Delta": 0,
+          "qualityPassAt1Delta": null,
+          "codeQualityDeltaMean": null,
+          "qualityGainPerAdditional1000TokensMean": null
+        }
+      },
+      "cli": {
+        "outcome": "completed",
+        "reason": null,
+        "excerpt": null
+      },
+      "summary": "# Benchmark summary — stage-a-ts-pagination-window-bugfix-mistral-small-2603\n\n- Manifest: `sha256:9e2f147eb67c84e53d858f939a87ec21e2364b0345ff2a7df74688cb2fb9ecc9`\n- Full check/source/graph report: `report.md` in the workflow artifact\n- Canonical replay evidence: `runs/pair-*.json` in the workflow artifact\n- Bounded evaluator diagnostics and sanitized candidate recovery artifacts: `evaluator/` and `failures/`\n\n| Condition | Attempts | Scored attempts | Valid quality attempts | Functional pass@1 | Quality-qualified pass@1 | Code quality |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: |\n| baseline | 3 | 0 | 0 | 0.0% | — | — |\n| grace | 3 | 0 | 0 | 0.0% | — | — |\n\n- Functional pass@1 delta: 0.0%\n- Quality-qualified pass@1 delta: —\n- Mean code-quality delta: —\n- Tokens: 2548043 (2495445 prompt + 52598 completion)\n- OpenRouter cost: $0.106297\n\n## Attempt index\n\n| Pair | Condition | Status | Code quality | Violations | Canonical evidence |\n| --- | --- | --- | ---: | ---: | --- |\n| pair-01 | baseline | functional_failed | — | — | unavailable |\n| pair-01 | grace | functional_failed | — | — | unavailable |\n| pair-02 | grace | functional_failed | — | — | unavailable |\n| pair-02 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | grace | functional_failed | — | — | unavailable |\n\n## Compact raw scoring evidence\n\nEvery accepted check row is shown. Snippets and graph/path projections are display-bounded; canonical per-run JSON remains complete.\n\n### pair-01 · baseline · functional_failed\n\n- Agent execution: 24/200 steps; 24 requests; 23 tool calls.\n- Tool usage: edit×2/0 errors, list\\_files×3/0 errors, read\\_file×4/0 errors, run\\_command×8/0 errors, write\\_file×6/0 errors.\n- Recent tool activity (3/8 retained in summary): 21:read\\_file/ok, 22:list\\_files/ok, 23:run\\_command/ok.\n- Approved command diagnostics (4 retained; truncated): 7:check/command_exit/exit 1, 9:check/command_exit/exit 1, 11:check/command_exit/exit 1, 13:check/command_exit/exit 1.\n- Candidate recovery: [failures/pair-01-baseline-candidate-recovery.json](failures/pair-01-baseline-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-01 · grace · functional_failed\n\n- Agent execution: 37/200 steps; 37 requests; 36 tool calls.\n- Tool usage: edit×6/1 errors, grace\\_deepen×6/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_install\\_talents×2/0 errors, grace\\_prepare\\_task×1/0 errors, list\\_files×3/0 errors, read\\_file×7/0 errors, run\\_command×6/1 errors, write\\_file×4/0 errors.\n- Recent tool activity (3/8 retained in summary): 34:read\\_file/ok, 35:list\\_files/ok, 36:write\\_file/ok.\n- Approved command diagnostics (4 retained; truncated): 18:check/command_exit/exit 1, 23:check/command_exit/exit 1, 26:check/passed/exit 0, 29:check/passed/exit 0.\n- Candidate recovery: [failures/pair-01-grace-candidate-recovery.json](failures/pair-01-grace-candidate-recovery.json) (bounded artifact; 3 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · grace · functional_failed\n\n- Agent execution: 24/200 steps; 24 requests; 23 tool calls.\n- Tool usage: grace\\_discover\\_codebase×1/0 errors, grace\\_prepare\\_task×2/0 errors, list\\_files×5/4 errors, read\\_file×4/0 errors, run\\_command×7/3 errors, write\\_file×4/0 errors.\n- Recent tool activity (3/8 retained in summary): 21:run\\_command/execution_error, 22:run\\_command/ok, 23:write\\_file/ok.\n- Approved command diagnostics (4 retained; truncated): 8:check/passed/exit 0, 14:check/passed/exit 0, 17:check/passed/exit 0, 19:—/command_not_approved.\n- Candidate recovery: [failures/pair-02-grace-candidate-recovery.json](failures/pair-02-grace-candidate-recovery.json) (bounded artifact; 3 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · baseline · functional_failed\n\n- Agent execution: 15/200 steps; 15 requests; 14 tool calls.\n- Tool usage: edit×1/0 errors, list\\_files×2/0 errors, read\\_file×5/0 errors, run\\_command×3/0 errors, write\\_file×3/0 errors.\n- Recent tool activity (3/8 retained in summary): 12:read\\_file/ok, 13:run\\_command/ok, 14:read\\_file/ok.\n- Approved command diagnostics (3 retained): 8:check/command_exit/exit 1, 10:check/passed/exit 0, 13:check/passed/exit 0.\n- Candidate recovery: [failures/pair-02-baseline-candidate-recovery.json](failures/pair-02-baseline-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · baseline · functional_failed\n\n- Agent execution: 26/200 steps; 26 requests; 25 tool calls.\n- Tool usage: edit×3/0 errors, list\\_files×4/0 errors, read\\_file×7/0 errors, run\\_command×8/1 errors, write\\_file×3/0 errors.\n- Recent tool activity (3/8 retained in summary): 23:read\\_file/ok, 24:read\\_file/ok, 25:run\\_command/ok.\n- Approved command diagnostics (4 retained; truncated): 7:check/command_exit/exit 1, 10:check/command_exit/exit 1, 15:check/command_exit/exit 1, 17:check/passed/exit 0.\n- Candidate recovery: [failures/pair-03-baseline-candidate-recovery.json](failures/pair-03-baseline-candidate-recovery.json) (bounded artifact; 3 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · grace · functional_failed\n\n- Agent execution: 32/200 steps; 32 requests; 31 tool calls.\n- Tool usage: edit×8/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_prepare\\_task×2/0 errors, list\\_files×3/0 errors, read\\_file×8/1 errors, run\\_command×7/0 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 29:read\\_file/ok, 30:read\\_file/ok, 31:list\\_files/ok.\n- Approved command diagnostics (4 retained; truncated): 9:check/passed/exit 0, 11:check/command_exit/exit 1, 15:check/command_exit/exit 1, 17:check/command_exit/exit 1.\n- Candidate recovery: [failures/pair-03-grace-candidate-recovery.json](failures/pair-03-grace-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`)."
+    },
+    {
+      "task": "ts-pagination-window-bugfix",
+      "model": "openai/gpt-5.6-luna",
+      "campaignId": "stage-a-ts-pagination-window-bugfix-gpt-5.6-luna",
+      "files": {
+        "manifest": true,
+        "aggregate": true,
+        "summary": true,
+        "campaignLog": true,
+        "runRecords": 6,
+        "missing": []
+      },
+      "runRecords": {
+        "attempts": 6,
+        "statuses": {
+          "scored": 0,
+          "functional_failed": 6,
+          "agent_error": 0,
+          "infrastructure_error": 0,
+          "evaluator_error": 0
+        },
+        "byCondition": {
+          "baseline": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          },
+          "grace": {
+            "scored": 0,
+            "functional_failed": 3,
+            "agent_error": 0,
+            "infrastructure_error": 0,
+            "evaluator_error": 0
+          }
+        }
+      },
+      "aggregate": {
+        "baseline": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 62190,
+          "completionTokens": 9988,
+          "totalTokens": 72178,
+          "cost": 0.017535170000000003,
+          "durationMeanMs": 60077.333333333336
+        },
+        "grace": {
+          "functionalPassAt1": 0,
+          "qualityPassAt1": null,
+          "codeQualityMean": null,
+          "promptTokens": 976893,
+          "completionTokens": 9800,
+          "totalTokens": 986693,
+          "cost": 0.04722739,
+          "durationMeanMs": 90461.33333333333
+        },
+        "paired": {
+          "functionalAttempts": 3,
+          "qualityAttempts": 0,
+          "functionalPassAt1Delta": 0,
+          "qualityPassAt1Delta": null,
+          "codeQualityDeltaMean": null,
+          "qualityGainPerAdditional1000TokensMean": null
+        }
+      },
+      "cli": {
+        "outcome": "completed",
+        "reason": null,
+        "excerpt": null
+      },
+      "summary": "# Benchmark summary — stage-a-ts-pagination-window-bugfix-gpt-5.6-luna\n\n- Manifest: `sha256:844d58bf20257e1e9d666bca8475a1252b1cf6101ac10d3a21b55276e9120940`\n- Full check/source/graph report: `report.md` in the workflow artifact\n- Canonical replay evidence: `runs/pair-*.json` in the workflow artifact\n- Bounded evaluator diagnostics and sanitized candidate recovery artifacts: `evaluator/` and `failures/`\n\n| Condition | Attempts | Scored attempts | Valid quality attempts | Functional pass@1 | Quality-qualified pass@1 | Code quality |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: |\n| baseline | 3 | 0 | 0 | 0.0% | — | — |\n| grace | 3 | 0 | 0 | 0.0% | — | — |\n\n- Functional pass@1 delta: 0.0%\n- Quality-qualified pass@1 delta: —\n- Mean code-quality delta: —\n- Tokens: 1058871 (1039083 prompt + 19788 completion)\n- OpenRouter cost: $0.064763\n\n## Attempt index\n\n| Pair | Condition | Status | Code quality | Violations | Canonical evidence |\n| --- | --- | --- | ---: | ---: | --- |\n| pair-01 | baseline | functional_failed | — | — | unavailable |\n| pair-01 | grace | functional_failed | — | — | unavailable |\n| pair-02 | grace | functional_failed | — | — | unavailable |\n| pair-02 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | baseline | functional_failed | — | — | unavailable |\n| pair-03 | grace | functional_failed | — | — | unavailable |\n\n## Compact raw scoring evidence\n\nEvery accepted check row is shown. Snippets and graph/path projections are display-bounded; canonical per-run JSON remains complete.\n\n### pair-01 · baseline · functional_failed\n\n- Agent execution: 6/200 steps; 6 requests; 8 tool calls.\n- Tool usage: find\\_files×1/0 errors, grep×1/0 errors, list\\_files×1/0 errors, read\\_file×2/0 errors, run\\_command×1/0 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 3:write\\_file/ok, 4:write\\_file/ok, 5:run\\_command/ok.\n- Approved command diagnostics (1 retained): 5:check/passed/exit 0.\n- Candidate recovery: [failures/pair-01-baseline-candidate-recovery.json](failures/pair-01-baseline-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-01 · grace · functional_failed\n\n- Agent execution: 15/200 steps; 15 requests; 20 tool calls.\n- Tool usage: edit×2/0 errors, find\\_files×2/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_prepare\\_task×2/0 errors, grace\\_record\\_validation×1/0 errors, grace\\_validate×4/0 errors, list\\_files×1/0 errors, read\\_file×4/0 errors, run\\_command×2/0 errors, write\\_file×1/0 errors.\n- Recent tool activity (3/8 retained in summary): 12:read\\_file/ok, 13:edit/ok, 14:run\\_command/ok.\n- Approved command diagnostics (2 retained): 8:check/passed/exit 0, 14:check/passed/exit 0.\n- Candidate recovery: [failures/pair-01-grace-candidate-recovery.json](failures/pair-01-grace-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · grace · functional_failed\n\n- Agent execution: 18/200 steps; 19 requests; 22 tool calls.\n- Tool usage: find\\_files×1/0 errors, grace\\_deepen×4/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_doctor×1/0 errors, grace\\_install\\_talents×1/0 errors, grace\\_prepare\\_task×1/0 errors, grace\\_record\\_validation×2/0 errors, grace\\_validate×5/0 errors, list\\_files×1/0 errors, read\\_file×2/0 errors, run\\_command×1/0 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 15:grace\\_record\\_validation/ok, 16:grace\\_validate/ok, 17:grace\\_record\\_validation/ok.\n- Approved command diagnostics (1 retained): 11:check/passed/exit 0.\n- Candidate recovery: [failures/pair-02-grace-candidate-recovery.json](failures/pair-02-grace-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-02 · baseline · functional_failed\n\n- Agent execution: 7/200 steps; 8 requests; 9 tool calls.\n- Tool usage: find\\_files×2/0 errors, list\\_files×1/0 errors, read\\_file×3/0 errors, run\\_command×1/0 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 4:write\\_file/ok, 5:write\\_file/ok, 6:run\\_command/ok.\n- Approved command diagnostics (1 retained): 6:check/passed/exit 0.\n- Candidate recovery: [failures/pair-02-baseline-candidate-recovery.json](failures/pair-02-baseline-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · baseline · functional_failed\n\n- Agent execution: 8/200 steps; 8 requests; 10 tool calls.\n- Tool usage: edit×2/0 errors, find\\_files×1/0 errors, grep×1/0 errors, list\\_files×1/0 errors, read\\_file×2/0 errors, run\\_command×1/0 errors, write\\_file×2/0 errors.\n- Recent tool activity (3/8 retained in summary): 5:write\\_file/ok, 6:edit/ok, 7:run\\_command/ok.\n- Approved command diagnostics (1 retained): 7:check/passed/exit 0.\n- Candidate recovery: [failures/pair-03-baseline-candidate-recovery.json](failures/pair-03-baseline-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`).\n\n### pair-03 · grace · functional_failed\n\n- Agent execution: 14/200 steps; 15 requests; 16 tool calls.\n- Tool usage: edit×1/0 errors, find\\_files×1/0 errors, grace\\_discover\\_codebase×1/0 errors, grace\\_doctor×1/0 errors, grace\\_install\\_talents×1/0 errors, grace\\_prepare\\_task×1/0 errors, grace\\_record\\_validation×1/0 errors, grace\\_validate×4/0 errors, list\\_files×1/0 errors, read\\_file×2/0 errors, run\\_command×1/0 errors, write\\_file×1/0 errors.\n- Recent tool activity (3/8 retained in summary): 11:grace\\_validate/ok, 12:grace\\_validate/ok, 13:grace\\_record\\_validation/ok.\n- Approved command diagnostics (1 retained): 9:check/passed/exit 0.\n- Candidate recovery: [failures/pair-03-grace-candidate-recovery.json](failures/pair-03-grace-candidate-recovery.json) (bounded artifact; 2 operations, 0 omitted, 0 redactions, 0 unsafe paths omitted).\n\nScoring evidence: **not evaluated** (run status: `functional_failed`)."
+    }
+  ]
+}
